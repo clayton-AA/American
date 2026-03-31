@@ -341,7 +341,7 @@ app.post('/generate', async (req, res) => {
     const { facility, address, contact, salesName, salesPhone, salesEmail,
             date, price, equipment } = req.body;
 
-    const logoData = fs.readFileSync(path.join(__dirname, 'logo.png'));
+    const logoData = fs.readFileSync(path.join(__dirname, 'public', 'logo.png'));
 
     const totalUnits  = equipment.reduce((s, e) => s + e.qty, 0);
     const totalVisits = equipment.reduce((s, e) => s + e.qty * e.visits, 0);
