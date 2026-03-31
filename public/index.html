@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>American Air — Proposal Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue: #1B3A6B; --light-blue: #E8EEF7; --mid-blue: #B5D4F4;
+    --gray: #444; --muted: #666; --border: #ddd;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: #f4f6f9; color: var(--gray); min-height: 100vh; }
+
+  .topbar { background: var(--blue); padding: 0 2rem; display: flex; align-items: center; gap: 1.5rem; height: 64px; }
+  .topbar img { height: 38px; }
+  .topbar-title { font-family: 'Playfair Display', serif; color: white; font-size: 17px; letter-spacing: 0.2px; }
+  .topbar-sub { color: #AABCDD; font-size: 12px; margin-top: 1px; }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; min-height: calc(100vh - 64px); }
+
+  .sidebar { background: white; border-right: 1px solid var(--border); padding: 1.5rem; overflow-y: auto; }
+  .main { padding: 1.5rem; overflow-y: auto; }
+
+  .section { margin-bottom: 1.75rem; }
+  .section-title { font-size: 11px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase;
+    color: var(--blue); padding-bottom: 8px; border-bottom: 2px solid var(--light-blue); margin-bottom: 1rem; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; margin-top: 10px; }
+  label:first-of-type { margin-top: 0; }
+  input[type=text], input[type=email], input[type=tel] {
+    width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--gray); background: white;
+    transition: border-color 0.15s;
+  }
+  input:focus { outline: none; border-color: var(--blue); }
+
+  .eq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .eq-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px;
+    cursor: pointer; transition: all 0.15s; background: white; user-select: none; }
+  .eq-card:hover { border-color: var(--mid-blue); background: #fafcff; }
+  .eq-card.active { border-color: var(--blue); background: var(--light-blue); }
+  .eq-card-name { font-size: 12px; font-weight: 500; color: var(--gray); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .eq-card.active .eq-card-name { color: var(--blue); }
+  .eq-check { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .eq-card.active .eq-check { background: var(--blue); border-color: var(--blue); }
+  .eq-check-inner { width: 6px; height: 6px; border-radius: 50%; background: white; display: none; }
+  .eq-card.active .eq-check-inner { display: block; }
+  .eq-controls { display: none; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--mid-blue); gap: 10px; align-items: center; }
+  .eq-card.active .eq-controls { display: flex; }
+  .eq-ctrl-label { font-size: 11px; color: var(--blue); white-space: nowrap; }
+  .eq-ctrl-input { width: 48px; padding: 3px 6px; border: 1px solid var(--mid-blue); border-radius: 4px;
+    font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
+  .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
+
+  .btn-generate { width: 100%; padding: 13px; background: var(--blue); color: white; border: none;
+    border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: background 0.15s; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-generate:hover { background: #152d54; }
+  .btn-generate:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-clear { width: 100%; padding: 8px; background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 8px; }
+  .btn-clear:hover { background: #f5f5f5; }
+
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .preview-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .preview-header { background: var(--blue); padding: 14px 20px; display: flex; align-items: flex-end; justify-content: space-between; }
+  .preview-co { font-family: 'Playfair Display', serif; font-size: 16px; color: white; }
+  .preview-sub { font-size: 11px; color: #AABCDD; margin-top: 3px; }
+  .preview-hero { background: var(--light-blue); padding: 14px 20px; border-bottom: 1px solid var(--mid-blue); }
+  .preview-hero h2 { font-size: 16px; font-weight: 500; color: var(--blue); margin-bottom: 3px; }
+  .preview-hero p { font-size: 12px; color: #185FA5; }
+  .preview-meta { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+  .preview-meta-item { padding: 10px 16px; border-right: 1px solid var(--border); }
+  .preview-meta-item:last-child { border-right: none; }
+  .preview-meta-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .preview-meta-val { font-size: 13px; font-weight: 500; color: var(--gray); }
+  .preview-body { padding: 0 20px 20px; }
+  .preview-empty { text-align: center; padding: 3rem; color: var(--muted); font-size: 13px; }
+  .preview-eq { margin-top: 16px; }
+  .preview-eq-title { font-size: 13px; font-weight: 500; color: white; background: var(--blue);
+    padding: 10px 14px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .preview-eq-badge { font-size: 11px; font-weight: 400; background: rgba(255,255,255,0.15); padding: 2px 9px; border-radius: 10px; }
+  .preview-cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--mid-blue); border-top: none; border-radius: 0 0 6px 6px; overflow: hidden; }
+  .preview-cat { padding: 10px 12px; background: white; border-right: 1px solid #EEF3FA; }
+  .preview-cat:last-child { border-right: none; }
+  .preview-cat-label { font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--blue); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 2px solid var(--mid-blue); }
+  .preview-cat-items { list-style: none; }
+  .preview-cat-items li { font-size: 11px; color: #555; line-height: 1.55; display: flex; gap: 5px; margin-bottom: 3px; }
+  .preview-cat-items li::before { content: '·'; color: var(--blue); font-weight: 700; flex-shrink: 0; }
+  .preview-summary { margin-top: 14px; background: var(--light-blue); border-radius: 6px; padding: 10px 14px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .preview-summary-item { font-size: 12px; color: #185FA5; }
+  .preview-summary-item strong { font-weight: 500; }
+
+  .flag { background: #FFF8E7; border: 1px solid #F5C842; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 1rem; font-size: 12px; color: #7a5c00; line-height: 1.5; }
+  .flag strong { font-weight: 500; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .preview-meta { grid-template-columns: 1fr 1fr; }
+    .preview-cat-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo.png" alt="American Air">
+  <div>
+    <div class="topbar-title">Proposal Builder</div>
+    <div class="topbar-sub">Preventative Maintenance Agreement</div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+
+    <div class="flag">
+      <strong>⚠ Before using with customers:</strong> The T&amp;C section contains "ISS" in two places (Indemnity &amp; Warranty). This appears to be carried over from a previous template — replace with "American Air LLC" if needed.
+    </div>
+
+    <div class="section">
+      <div class="section-title">Customer Info</div>
+      <label>Facility / Property name</label>
+      <input type="text" id="inp-facility" placeholder="e.g. Henley Enterprises — Lowell" oninput="refresh()">
+      <label>Facility address</label>
+      <input type="text" id="inp-address" placeholder="e.g. 123 Main St, Lowell MA 01852" oninput="refresh()">
+      <label>Contact name</label>
+      <input type="text" id="inp-contact" placeholder="Property manager name" oninput="refresh()">
+      <label>Agreement date</label>
+      <input type="text" id="inp-date" placeholder="e.g. April 1, 2026" oninput="refresh()">
+      <label>Annual investment</label>
+      <input type="text" id="inp-price" placeholder="e.g. $3,600" oninput="refresh()">
+    </div>
+
+    <div class="section">
+      <div class="section-title">Salesperson</div>
+      <label>Name</label>
+      <input type="text" id="inp-sales-name" placeholder="Your full name" oninput="refresh()">
+      <label>Phone</label>
+      <input type="tel" id="inp-sales-phone" placeholder="e.g. 978-555-0100" oninput="refresh()">
+      <label>Email</label>
+      <input type="email" id="inp-sales-email" placeholder="you@americanairinc.com" oninput="refresh()">
+    </div>
+
+    <div class="section">
+      <div class="section-title">Equipment on Site</div>
+      <div class="eq-grid" id="eq-grid"></div>
+    </div>
+
+    <button class="btn-generate" id="gen-btn" onclick="generate()">
+      <span id="btn-label">Generate &amp; Download Word Doc</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+    <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
+
+  </aside>
+
+  <main class="main">
+    <div class="preview-wrap">
+      <div class="preview-header">
+        <div>
+          <div class="preview-co">American Air, Inc.</div>
+          <div class="preview-sub">Mechanical Contracting · Chelmsford, MA</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:#AABCDD;" id="prev-sales-info">—</div>
+        </div>
+      </div>
+      <div class="preview-hero">
+        <h2 id="prev-facility">Customer facility</h2>
+        <p id="prev-contact">Contact name · Agreement date</p>
+      </div>
+      <div class="preview-meta">
+        <div class="preview-meta-item"><div class="preview-meta-label">Investment</div><div class="preview-meta-val" id="prev-price">—</div></div>
+        <div class="preview-meta-item"><div class="preview-meta-label">Equipment types</div><div class="preview-meta-val" id="prev-types">—</div></div>
+        <div class="preview-meta-item"><div class="preview-meta-label">Total units</div><div class="preview-meta-val" id="prev-units">—</div></div>
+        <div class="preview-meta-item"><div class="preview-meta-label">Total visits / yr</div><div class="preview-meta-val" id="prev-visits">—</div></div>
+      </div>
+      <div class="preview-body" id="preview-body">
+        <div class="preview-empty">Select equipment above to build your proposal preview.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const EQ_DATA = [
+  { id:'rtu',    name:'Rooftop Unit (RTU)',         defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','All operating and safety controls'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Clean condenser coil','Check evaporator coil','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — clean','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit']} },
+  { id:'split',  name:'Split System (DX)',           defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Operating and safety controls'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — clean surface','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit']} },
+  { id:'mini',   name:'Ductless Mini Split',         defaultVisits:2, cats:{'Air & Filtration':['Filters — clean or replace per contract','Fan blades & housing — fouling check','Damper — adjust / lubricate if applicable','Check for moisture carryover from drain pan'],'Refrigeration':['Refrigerant pressures & levels','Check for visible refrigerant / oil leaks','Evaporator coils — clean per contract','Condenser coils — clean per contract'],'Electrical & Controls':['All electrical connections','Control system devices','Control box — dirt & debris','Field serviceable bearings — lubricate'],'Drainage':['P-trap drain — clean as needed','Drain pan, line & coil — check for biological growth','Condensate pump if applicable','General condition of unit']} },
+  { id:'vrf',    name:'VRF / VRV System',            defaultVisits:2, cats:{'Electrical':['Volts/amps — all motors','Tighten all electrical connections','All safety controls & safeties','Communication wiring integrity'],'Refrigeration':['Refrigerant pressures — all circuits','Check for leaks — all connections','Condenser coil — clean per contract','Oil levels if applicable'],'Controls':['Zone controller operation','Setpoints & schedules verified','Fault code review','Overall controls condition'],'Mechanical':['Fan blades & housing','Filters — indoor units per contract','Lubricate all serviceable bearings','Overall condition — all heads & ODU']} },
+  { id:'vav',    name:'VAV Box',                     defaultVisits:2, cats:{'Controls':['Actuator operation & calibration','Thermostat / zone sensor accuracy','Setpoints & schedules verified','Occupied / unoccupied schedules'],'Mechanical':['Damper blade condition & seating','Linkage — tighten & lubricate','Box casing & insulation integrity','Flow measurement if applicable'],'Heating':['Hot water coil operation if applicable','Control valve — stroke & seating','Reheat sequence of operation','Overall condition of box'],'Electrical':['All electrical connections','Control board & wiring','24V transformer output','Overall condition']} },
+  { id:'reznor', name:'Reznor / Unit Heater',        defaultVisits:1, cats:{'Combustion':['Burner assembly & orifices','Ignition sequence of operation','Burner sequence of operation','Gas valve operation & pressure'],'Heat Exchanger':['Cracks, corrosion & deterioration','Flue & venting — blockage & condition','Combustion air — adequate supply','CO test if applicable'],'Electrical':['All electrical connections','Safety controls & limits','Thermostat calibration','Blower motor amps if applicable'],'General':['Fan blade & housing condition','Filters if applicable','Overall unit condition','Recommend service if needed']} },
+  { id:'mau',    name:'Make-Up Air Unit (MAU)',       defaultVisits:2, cats:{'Air':['Filters — inspect / replace per contract','Fan wheel — clean & balance check','Belts — inspect / replace per contract','Sheaves — wear & alignment'],'Heating / Cooling':['Heat exchanger if applicable','Gas valve & burner sequence','Cooling coil & refrigerant check','Economizer operation'],'Electrical':['All electrical connections','Contactors & starters for wear','Safety controls & limits','Overall electrical condition'],'General':['Louvers & dampers — operation','Drain pan & condensate line','Lubricate all serviceable bearings','Overall condition of unit']} },
+  { id:'erv',    name:'ERV / HRV',                   defaultVisits:2, cats:{'Core & Filters':['Heat / energy recovery core — inspect & clean','Filters — clean or replace per contract','Core bypass damper operation','Defrost cycle operation if applicable'],'Mechanical':['Fan wheels — clean & condition','Belts if applicable','Lubricate all serviceable bearings','Condensate drain if applicable'],'Controls':['Controls & setpoints verified','Enthalpy sensors if applicable','Occupied / unoccupied schedules','Airflow verification'],'General':['All electrical connections','Housing integrity & seals','Overall condition of unit','Recommend service if needed']} },
+];
+
+let state = {};
+EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+
+function buildGrid() {
+  const g = document.getElementById('eq-grid');
+  g.innerHTML = '';
+  EQ_DATA.forEach(eq => {
+    const s = state[eq.id];
+    const d = document.createElement('div');
+    d.className = 'eq-card' + (s.active ? ' active' : '');
+    d.id = 'card-' + eq.id;
+    d.innerHTML = `
+      <div class="eq-card-name">${eq.name}<div class="eq-check"><div class="eq-check-inner"></div></div></div>
+      <div class="eq-controls">
+        <span class="eq-ctrl-label">Qty</span>
+        <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">
+        <span class="eq-ctrl-label" style="margin-left:6px;">Visits/yr</span>
+        <input class="eq-ctrl-input" type="number" min="1" max="12" value="${s.visits}" id="vis-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','visits',this.value)">
+      </div>`;
+    d.addEventListener('click', () => toggle(eq.id));
+    g.appendChild(d);
+  });
+}
+
+function toggle(id) {
+  state[id].active = !state[id].active;
+  document.getElementById('card-'+id).classList.toggle('active', state[id].active);
+  refresh();
+}
+
+function updateField(id, field, val) {
+  state[id][field] = parseInt(val) || 1;
+  refresh();
+}
+
+function gv(id) { return document.getElementById(id).value.trim(); }
+
+function refresh() {
+  const active = EQ_DATA.filter(e => state[e.id].active);
+  const facility = gv('inp-facility');
+  const contact  = gv('inp-contact');
+  const date     = gv('inp-date');
+  const price    = gv('inp-price');
+  const sName    = gv('inp-sales-name');
+  const sPhone   = gv('inp-sales-phone');
+  const sEmail   = gv('inp-sales-email');
+
+  document.getElementById('prev-facility').textContent = facility || 'Customer facility';
+  document.getElementById('prev-contact').textContent  = [contact, date].filter(Boolean).join(' · ') || '—';
+  document.getElementById('prev-price').textContent    = price  || '—';
+  document.getElementById('prev-types').textContent    = active.length || '—';
+  document.getElementById('prev-sales-info').textContent = sName ? `${sName}${sPhone?' · '+sPhone:''}` : '—';
+
+  const totalUnits  = active.reduce((s,e) => s + state[e.id].qty, 0);
+  const totalVisits = active.reduce((s,e) => s + state[e.id].qty * state[e.id].visits, 0);
+  document.getElementById('prev-units').textContent  = totalUnits  || '—';
+  document.getElementById('prev-visits').textContent = totalVisits || '—';
+
+  const body = document.getElementById('preview-body');
+  if (active.length === 0) {
+    body.innerHTML = '<div class="preview-empty">Select equipment above to build your proposal preview.</div>';
+    return;
+  }
+
+  let html = '';
+  active.forEach(eq => {
+    const s = state[eq.id];
+    html += `<div class="preview-eq">
+      <div class="preview-eq-title">${eq.name}<span class="preview-eq-badge">${s.qty} unit${s.qty>1?'s':''} · ${s.visits} visit${s.visits>1?'s':''} / yr</span></div>
+      <div class="preview-cat-grid">`;
+    Object.entries(eq.cats).forEach(([cat, items]) => {
+      html += `<div class="preview-cat"><div class="preview-cat-label">${cat}</div><ul class="preview-cat-items">`;
+      items.forEach(item => { html += `<li>${item}</li>`; });
+      html += `</ul></div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `<div class="preview-summary">
+    <div class="preview-summary-item">Equipment types: <strong>${active.length}</strong></div>
+    <div class="preview-summary-item">Total units: <strong>${totalUnits}</strong></div>
+    <div class="preview-summary-item">Total visits / yr: <strong>${totalVisits}</strong></div>
+    ${price ? `<div class="preview-summary-item">Annual investment: <strong>${price}</strong></div>` : ''}
+  </div>`;
+
+  body.innerHTML = html;
+}
+
+async function generate() {
+  const active = EQ_DATA.filter(e => state[e.id].active);
+  if (active.length === 0) { alert('Please select at least one equipment type.'); return; }
+
+  const required = ['inp-facility','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email'];
+  const missing  = required.filter(id => !gv(id));
+  if (missing.length) { alert('Please fill in all required fields before generating.'); return; }
+
+  const btn  = document.getElementById('gen-btn');
+  const lbl  = document.getElementById('btn-label');
+  const spin = document.getElementById('spinner');
+  btn.disabled = true; lbl.textContent = 'Generating...'; spin.style.display = 'block';
+
+  try {
+    const payload = {
+      facility:   gv('inp-facility'),
+      address:    gv('inp-address'),
+      contact:    gv('inp-contact'),
+      salesName:  gv('inp-sales-name'),
+      salesPhone: gv('inp-sales-phone'),
+      salesEmail: gv('inp-sales-email'),
+      date:       gv('inp-date'),
+      price:      gv('inp-price'),
+      equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+    };
+
+    const resp = await fetch('/generate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+
+    if (!resp.ok) { const err = await resp.json(); throw new Error(err.error); }
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = resp.headers.get('Content-Disposition').match(/filename="(.+)"/)[1];
+    a.click();
+    URL.revokeObjectURL(url);
+
+  } catch(e) {
+    alert('Error generating document: ' + e.message);
+  } finally {
+    btn.disabled = false; lbl.textContent = 'Generate & Download Word Doc'; spin.style.display = 'none';
+  }
+}
+
+function clearAll() {
+  ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email']
+    .forEach(id => document.getElementById(id).value = '');
+  EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+  buildGrid();
+  refresh();
+}
+
+buildGrid();
+refresh();
+</script>
+</body>
+</html>
