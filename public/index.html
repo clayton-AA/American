@@ -95,8 +95,6 @@
   .preview-summary { margin-top: 14px; background: var(--light-blue); border-radius: 6px; padding: 10px 14px; display: flex; gap: 20px; flex-wrap: wrap; }
   .preview-summary-item { font-size: 12px; color: #185FA5; }
   .preview-summary-item strong { font-weight: 500; }
-
-  .flag { background: #FFF8E7; border: 1px solid #F5C842; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 1rem; font-size: 12px; color: #7a5c00; line-height: 1.5; }
   .flag strong { font-weight: 500; }
 
   @media (max-width: 900px) {
@@ -118,11 +116,6 @@
 
 <div class="layout">
   <aside class="sidebar">
-
-    <div class="flag">
-      <strong>⚠ Before using with customers:</strong> The T&amp;C section contains "ISS" in two places (Indemnity &amp; Warranty). This appears to be carried over from a previous template — replace with "American Air LLC" if needed.
-    </div>
-
     <div class="section">
       <div class="section-title">Customer Info</div>
       <label>Facility / Property name</label>
@@ -153,7 +146,7 @@
     </div>
 
     <button class="btn-generate" id="gen-btn" onclick="generate()">
-      <span id="btn-label">Generate &amp; Download Word Doc</span>
+      <span id="btn-label">Generate &amp; Download PDF</span>
       <div class="spinner" id="spinner"></div>
     </button>
     <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
@@ -254,7 +247,7 @@ function refresh() {
   document.getElementById('prev-sales-info').textContent = sName ? `${sName}${sPhone?' · '+sPhone:''}` : '—';
 
   const totalUnits  = active.reduce((s,e) => s + state[e.id].qty, 0);
-  const totalVisits = active.reduce((s,e) => s + state[e.id].qty * state[e.id].visits, 0);
+  const totalVisits = active.length > 0 ? Math.max(...active.map(e => state[e.id].visits)) : 0;
   document.getElementById('prev-units').textContent  = totalUnits  || '—';
   document.getElementById('prev-visits').textContent = totalVisits || '—';
 
