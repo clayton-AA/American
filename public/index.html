@@ -56,18 +56,6 @@
     font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
   .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
 
-  /* ── Pricing calculator ── */
-  .pricing-section { margin-bottom: 1.75rem; }
-  .price-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .price-breakdown { background: var(--light-blue); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; }
-  .price-breakdown-row { display: flex; justify-content: space-between; font-size: 12px; color: #185FA5; padding: 3px 0; border-bottom: 1px solid #d0dff0; }
-  .price-breakdown-row:last-child { border-bottom: none; font-weight: 500; font-size: 13px; color: var(--blue); padding-top: 6px; margin-top: 2px; }
-  .price-breakdown-row.total { border-top: 1px solid var(--mid-blue); }
-  .price-apply-btn { width: 100%; margin-top: 8px; padding: 7px; background: var(--blue); color: white; border: none;
-    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
-  .price-apply-btn:hover { background: #152d54; }
-  .price-note { font-size: 10px; color: var(--muted); margin-top: 4px; text-align: center; }
-
   .dur-btn { padding: 7px; background: white; color: var(--muted); border: 1px solid var(--border);
     border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif;
     cursor: pointer; transition: all 0.15s; font-weight: 400; }
@@ -115,16 +103,6 @@
   .preview-summary-item strong { font-weight: 500; }
   .flag strong { font-weight: 500; }
 
-  /* ── Tabs ── */
-  .tab-bar { display: flex; border-bottom: 2px solid var(--light-blue); margin-bottom: 1.25rem; }
-  .tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
-    background: none; border: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
-    margin-bottom: -2px; transition: color 0.15s; }
-  .tab-btn:hover { color: var(--blue); }
-  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
-
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     .preview-meta { grid-template-columns: 1fr 1fr; }
@@ -167,14 +145,6 @@
 <div class="layout">
   <aside class="sidebar">
 
-    <div class="tab-bar">
-      <button class="tab-btn active" id="tab-proposal" onclick="switchTab('proposal')">Proposal</button>
-      <button class="tab-btn" id="tab-pricing" onclick="switchTab('pricing')">Pricing</button>
-    </div>
-
-    <!-- ── PROPOSAL TAB ── -->
-    <div class="tab-pane active" id="pane-proposal">
-
     <div class="section">
       <div class="section-title">Customer Info</div>
       <label>Facility / Property name</label>
@@ -205,7 +175,7 @@
       <input type="email" id="inp-sales-email" placeholder="you@americanairinc.com" oninput="refresh()">
     </div>
 
-<div class="section">
+    <div class="section">
       <div class="section-title">Additional Scope & Exclusions</div>
       <label>Additional services included</label>
       <textarea id="inp-additions" placeholder="e.g. Annual duct inspection, quarterly belt replacements..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
@@ -213,56 +183,10 @@
       <textarea id="inp-exclusions" placeholder="e.g. Refrigerant not included, coil cleaning on rooftop #3 excluded..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
     </div>
 
-<div class="section">
+    <div class="section">
       <div class="section-title">Equipment on Site</div>
       <div class="eq-grid" id="eq-grid"></div>
     </div>
-
-    </div><!-- end proposal pane -->
-
-    <!-- ── PRICING TAB ── -->
-    <div class="tab-pane" id="pane-pricing">
-
-    <div class="section">
-      <div class="section-title">Job Parameters</div>
-      <div class="price-inputs">
-        <div>
-          <label>Labor rate ($/hr)</label>
-          <input type="number" id="inp-labor-rate" value="149" min="0" step="1" oninput="calcPrice()">
-        </div>
-        <div>
-          <label>Travel time (hrs/visit)</label>
-          <input type="number" id="inp-travel" value="1" min="0" step="0.25" oninput="calcPrice()">
-        </div>
-        <div>
-          <label>Gross margin %</label>
-          <input type="number" id="inp-margin" value="50" min="1" max="99" step="1" oninput="calcPrice()">
-        </div>
-        <div>
-          <label>Material cost/unit</label>
-          <input type="number" id="inp-material" value="25" min="0" step="1" oninput="calcPrice()">
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Equipment & Hours</div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Select equipment on the Proposal tab first. Hrs/unit defaults from your pricing model — adjust per job.</p>
-      <div id="pricing-eq-list"><p style="font-size:12px;color:var(--muted);">No equipment selected yet.</p></div>
-    </div>
-
-    <div class="price-breakdown" id="price-breakdown" style="display:none;">
-      <div class="price-breakdown-row"><span>Total man hours</span><span id="pb-hours">—</span></div>
-      <div class="price-breakdown-row"><span>Labor cost</span><span id="pb-labor">—</span></div>
-      <div class="price-breakdown-row"><span>Travel cost</span><span id="pb-travel">—</span></div>
-      <div class="price-breakdown-row"><span>Materials (w/ tax)</span><span id="pb-materials">—</span></div>
-      <div class="price-breakdown-row"><span>Total cost</span><span id="pb-cost">—</span></div>
-      <div class="price-breakdown-row total"><span>Sell price</span><span id="pb-sell">—</span></div>
-    </div>
-    <button class="price-apply-btn" id="price-apply-btn" style="display:none;" onclick="applyPrice()">Apply price to proposal ↗</button>
-    <div class="price-note" id="price-note" style="display:none;">Select equipment on the Proposal tab to calculate</div>
-
-    </div><!-- end pricing pane -->
 
     <button class="btn-generate" id="gen-btn" onclick="generate()">
       <span id="btn-label">Generate &amp; Download PDF</span>
@@ -334,7 +258,6 @@ function buildGrid() {
     const d = document.createElement('div');
     d.className = 'eq-card' + (s.active ? ' active' : '');
     d.id = 'card-' + eq.id;
-    const defaultHrs = EQ_HOURS[eq.id] ? (EQ_HOURS[eq.id].q + EQ_HOURS[eq.id].a) / 2 : 1.0;
     d.innerHTML = `
       <div class="eq-card-name">${eq.name}<div class="eq-check"><div class="eq-check-inner"></div></div></div>
       <div class="eq-controls">
@@ -342,8 +265,6 @@ function buildGrid() {
         <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">
         <span class="eq-ctrl-label" style="margin-left:6px;">Visits/yr</span>
         <input class="eq-ctrl-input" type="number" min="1" max="12" value="${s.visits}" id="vis-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','visits',this.value)">
-        <span class="eq-ctrl-label" style="margin-left:6px;">Hrs/unit</span>
-        <input class="eq-ctrl-input" type="number" min="0.25" max="24" step="0.25" value="${s.hrs || defaultHrs}" id="hrs-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','hrs',this.value)">
       </div>`;
     d.addEventListener('click', () => toggle(eq.id));
     g.appendChild(d);
@@ -354,13 +275,11 @@ function toggle(id) {
   state[id].active = !state[id].active;
   document.getElementById('card-'+id).classList.toggle('active', state[id].active);
   refresh();
-  calcPrice();
 }
 
 function updateField(id, field, val) {
-  state[id][field] = field === 'hrs' ? (parseFloat(val) || 1) : (parseInt(val) || 1);
+  state[id][field] = parseInt(val) || 1;
   refresh();
-  calcPrice();
 }
 
 function gv(id) { return document.getElementById(id).value.trim(); }
@@ -485,116 +404,9 @@ function clearAll() {
   });
   buildGrid();
   refresh();
-  calcPrice();
 }
 
 
-// ── Tab switching ────────────────────────────────────────────────────────
-function switchTab(tab) {
-  ['proposal','pricing'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('active', t === tab);
-    document.getElementById('pane-'+t).classList.toggle('active', t === tab);
-  });
-  if (tab === 'pricing') calcPrice();
-}
-
-// ── Pricing calculator ───────────────────────────────────────────────────
-// Hours per unit per visit type (Q1, Q2, Q3, Annual) from spreadsheet
-const EQ_HOURS = {
-  rtu:    { q: 0.5,  a: 1.0  },  // RTU
-  split:  { q: 0.5,  a: 1.0  },  // Split System
-  mini:   { q: 0.5,  a: 1.0  },  // Ductless Mini Split
-  vrf:    { q: 1.0,  a: 1.5  },  // VRF/VRV
-  vav:    { q: 0.5,  a: 1.0  },  // VAV Box
-  reznor: { q: 0.75, a: 0.75 },  // Reznor/Unit Heater
-  mau:    { q: 1.0,  a: 1.5  },  // MAU
-  erv:    { q: 1.0,  a: 1.5  },  // ERV/HRV
-};
-const TAX_RATE = 0.0625;
-
-function calcPrice() {
-  const active = EQ_DATA.filter(e => state[e.id].active);
-  const breakdown = document.getElementById('price-breakdown');
-  const applyBtn  = document.getElementById('price-apply-btn');
-  const note      = document.getElementById('price-note');
-
-  if (active.length === 0) {
-    breakdown.style.display = 'none';
-    applyBtn.style.display  = 'none';
-    note.style.display      = 'block';
-    return;
-  }
-
-  const laborRate  = parseFloat(document.getElementById('inp-labor-rate').value) || 149;
-  const travel     = parseFloat(document.getElementById('inp-travel').value)      || 1;
-  const marginPct  = parseFloat(document.getElementById('inp-margin').value)      || 50;
-  const matPerUnit = parseFloat(document.getElementById('inp-material').value)    || 25;
-  const marginFactor = (100 - marginPct) / 100;
-
-  // Visits per year — use the max visits across selected equipment
-  const visitsPerYear = active.length > 0 ? Math.max(...active.map(e => state[e.id].visits)) : 2;
-  // Quarterly visits = visitsPerYear - 1 (annual), min 0
-  const qVisits = Math.max(0, visitsPerYear - 1);
-
-  // Man hours — use rep-entered hrs/unit if set, else default from EQ_HOURS
-  let totalHours = 0;
-  let totalUnits = 0;
-  active.forEach(e => {
-    const s    = state[e.id];
-    const defHrs = EQ_HOURS[e.id] ? (EQ_HOURS[e.id].q + EQ_HOURS[e.id].a) / 2 : 1.0;
-    const hrsPerUnit = s.hrs || defHrs;
-    // hrs/unit × visits/yr × qty
-    totalHours += hrsPerUnit * s.visits * s.qty;
-    totalUnits += s.qty;
-  });
-
-  // Costs
-  const laborCost    = totalHours * laborRate;
-  const travelCost   = visitsPerYear * travel * laborRate;
-  const matBase      = totalUnits * matPerUnit * visitsPerYear;
-  const matWithTax   = matBase * (1 + TAX_RATE);
-  const totalCost    = laborCost + travelCost + matWithTax;
-  const sellPrice    = marginFactor > 0 ? totalCost / marginFactor : totalCost;
-
-  const fmt = (n) => '$' + Math.round(n).toLocaleString();
-
-  document.getElementById('pb-hours').textContent     = totalHours.toFixed(1) + ' hrs';
-  document.getElementById('pb-labor').textContent     = fmt(laborCost);
-  document.getElementById('pb-travel').textContent    = fmt(travelCost);
-  document.getElementById('pb-materials').textContent = fmt(matWithTax);
-  document.getElementById('pb-cost').textContent      = fmt(totalCost);
-  document.getElementById('pb-sell').textContent      = fmt(sellPrice);
-
-  breakdown.style.display = 'block';
-  applyBtn.style.display  = 'block';
-  note.style.display      = 'none';
-
-  // Render per-equipment hours list
-  const eqList = document.getElementById('pricing-eq-list');
-  if (eqList) {
-    if (active.length === 0) {
-      eqList.innerHTML = '<p style="font-size:12px;color:var(--muted);">No equipment selected yet.</p>';
-    } else {
-      eqList.innerHTML = active.map(eq => {
-        const s = state[eq.id];
-        const defHrs = EQ_HOURS[eq.id] ? (EQ_HOURS[eq.id].q + EQ_HOURS[eq.id].a) / 2 : 1.0;
-        const hrsVal = s.hrs || defHrs;
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;gap:8px;">
-          <span style="font-size:12px;color:var(--gray);flex:1;">${eq.name} <span style="color:var(--muted)">×${s.qty}</span></span>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            <input type="number" min="0.25" max="24" step="0.25" value="${hrsVal}"
-              style="width:52px;padding:3px 6px;border:1px solid var(--mid-blue);border-radius:4px;font-size:12px;font-weight:500;color:var(--blue);text-align:center;background:white;"
-              oninput="state['${eq.id}'].hrs=parseFloat(this.value)||1; calcPrice();">
-            <span style="font-size:11px;color:var(--muted);">hrs/unit</span>
-          </div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  // Store for apply
-  window._calculatedPrice = fmt(sellPrice);
-}
 
 function applyPrice() {
   if (window._calculatedPrice) {
