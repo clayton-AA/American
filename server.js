@@ -1,31 +1,10 @@
 
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const app = express();
-
-function getChromePath() {
-  const candidates = [
-    '/opt/render/.cache/puppeteer',
-    path.join(os.homedir(), '.cache', 'puppeteer'),
-    path.join(os.homedir(), '.local', 'share', 'puppeteer'),
-  ];
-  function findChrome(dir) {
-    if (!fs.existsSync(dir)) return null;
-    for (const f of fs.readdirSync(dir)) {
-      const full = path.join(dir, f);
-      try {
-        if (fs.statSync(full).isDirectory()) { const r = findChrome(full); if (r) return r; }
-        else if (f === 'chrome' || f === 'chrome.exe') return full;
-      } catch(e) {}
-    }
-    return null;
-  }
-  for (const c of candidates) { const r = findChrome(c); if (r) return r; }
-  return null;
-}
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -375,12 +354,11 @@ app.post('/generate', async (req, res) => {
     const data = req.body;
     const html = buildHTML(data);
 
-    const chromePath = getChromePath();
-    console.log('Chrome path:', chromePath || 'not found — using default');
     const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: chromePath || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
