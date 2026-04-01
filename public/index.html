@@ -175,6 +175,14 @@
     </div>
 
     <div class="section">
+      <div class="section-title">Additional Scope & Exclusions</div>
+      <label>Additional services included</label>
+      <textarea id="inp-additions" placeholder="e.g. Annual duct inspection, quarterly belt replacements..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
+      <label style="margin-top:10px;">Exclusions</label>
+      <textarea id="inp-exclusions" placeholder="e.g. Refrigerant not included, coil cleaning on rooftop #3 excluded..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
+    </div>
+
+    <div class="section">
       <div class="section-title">Equipment on Site</div>
       <div class="eq-grid" id="eq-grid"></div>
     </div>
@@ -350,6 +358,8 @@ async function generate() {
       date:       gv('inp-date'),
       price:      gv('inp-price'),
       duration:   duration,
+      additions:  gv('inp-additions'),
+      exclusions: gv('inp-exclusions'),
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
     };
 
@@ -382,7 +392,7 @@ async function generate() {
 }
 
 function clearAll() {
-  ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email']
+  ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email','inp-additions','inp-exclusions']
     .forEach(id => document.getElementById(id).value = '');
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
   setDuration(1);

@@ -33,6 +33,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const LOGO_B64 = fs.readFileSync(path.join(__dirname, 'public', 'logo.png')).toString('base64');
 
+// ── Proposal number tracker ───────────────────────────────────────────────
+const COUNTER_FILE = path.join(__dirname, 'proposal_counter.json');
+
+function getNextProposalNumber() {
+  let data = { counter: 0 };
+  try { data = JSON.parse(fs.readFileSync(COUNTER_FILE, 'utf8')); } catch(e) {}
+  data.counter = (data.counter || 0) + 1;
+  fs.writeFileSync(COUNTER_FILE, JSON.stringify(data));
+  const year = new Date().getFullYear();
+  return `AA-${year}-${String(data.counter).padStart(4, '0')}`;
+}
+
 const EQ_CATALOG = {
   rtu:    { name:'Rooftop Unit (RTU)',         cats:{ 'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','All operating and safety controls'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Clean condenser coil','Check evaporator coil','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — clean','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit'] } },
   split:  { name:'Split System (DX)',           cats:{ 'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Operating and safety controls'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — clean surface','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit'] } },
@@ -73,7 +85,7 @@ const TC_SECTIONS = [
 ];
 
 function buildHTML(data) {
-  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, equipment } = data;
+  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, additions, exclusions, equipment, proposalNumber } = data;
   const durationLabel = duration === 1 ? '12 months' : `${duration} years`;
   const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
@@ -93,6 +105,28 @@ function buildHTML(data) {
       <div class="benefit">&#10003;&nbsp; Manufacturer warranty support</div>
       <div class="benefit">&#10003;&nbsp; Dedicated Account Manager</div>
     </div>`;
+
+  // Build additions / exclusions sections
+  const addExclHTML = (() => {
+    let html = '';
+    if (additions && additions.trim()) {
+      const lines = additions.split('\n').filter(l => l.trim());
+      html += `
+      <div class="section-label">Additional services included</div>
+      <div class="addexcl-box incl">
+        ${lines.map(l => `<div class="addexcl-row"><span class="addexcl-bullet incl-bullet">+</span><span>${l.trim()}</span></div>`).join('')}
+      </div>`;
+    }
+    if (exclusions && exclusions.trim()) {
+      const lines = exclusions.split('\n').filter(l => l.trim());
+      html += `
+      <div class="section-label">Exclusions</div>
+      <div class="addexcl-box excl">
+        ${lines.map(l => `<div class="addexcl-row"><span class="addexcl-bullet excl-bullet">&minus;</span><span>${l.trim()}</span></div>`).join('')}
+      </div>`;
+    }
+    return html;
+  })();
 
   const eqScheduleRows = equipment.map((e, i) => {
     const eq = EQ_CATALOG[e.id];
@@ -154,6 +188,27 @@ function buildHTML(data) {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', Arial, sans-serif; font-size: 11px; color: #333; background: white; }
 
+  /* ── Cover sheet ── */
+  .cover { width: 100%; height: 100vh; display: flex; flex-direction: column; position: relative; page-break-after: always; }
+  .cover-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px 40px; }
+  .cover-logo { height: 80px; margin-bottom: 60px; }
+  .cover-divider { width: 60px; height: 3px; background: #1B3A6B; margin: 0 auto 40px; }
+  .cover-title { font-family: 'Playfair Display', serif; font-size: 32px; color: #1B3A6B; text-align: center; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .cover-subtitle { font-size: 13px; color: #888; text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 70px; }
+  .cover-customer-block { text-align: center; }
+  .cover-customer-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #aaa; margin-bottom: 8px; }
+  .cover-customer-name { font-family: 'Playfair Display', serif; font-size: 24px; color: #222; margin-bottom: 6px; }
+  .cover-customer-address { font-size: 12px; color: #666; line-height: 1.7; }
+  .cover-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-top: 60px; width: 100%; border-top: 1px solid #eee; }
+  .cover-meta-item { padding: 20px 24px; border-right: 1px solid #eee; }
+  .cover-meta-item:last-child { border-right: none; }
+  .cover-meta-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin-bottom: 5px; }
+  .cover-meta-value { font-size: 12px; color: #333; font-weight: 500; }
+  .cover-meta-value.proposal-num { color: #1B3A6B; font-family: 'DM Sans', sans-serif; }
+  .cover-bottom { background: #1B3A6B; padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; }
+  .cover-bottom-co { font-family: 'Playfair Display', serif; font-size: 14px; color: white; }
+  .cover-bottom-info { font-size: 10px; color: #AABCDD; text-align: right; line-height: 1.8; }
+
   /* ── Header ── */
   .doc-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 0 10px; border-bottom: 3px solid #1B3A6B; }
   .doc-header img { height: 44px; }
@@ -187,6 +242,15 @@ function buildHTML(data) {
   .eq-schedule tbody td { padding: 7px 10px; border-bottom: 1px solid #E0E0E0; }
   .eq-schedule tbody tr.alt td { background: #FAFBFD; }
   .eq-schedule tfoot td { background: #E8EEF7; color: #1B3A6B; font-weight: 500; padding: 7px 10px; border-top: 2px solid #1B3A6B; }
+
+  /* ── Additions / Exclusions ── */
+  .addexcl-box { padding: 8px 0; margin-bottom: 4px; }
+  .addexcl-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 5px; font-size: 10.5px; }
+  .addexcl-bullet { font-weight: 700; font-size: 13px; flex-shrink: 0; line-height: 1.2; }
+  .incl-bullet { color: #1B6B3A; }
+  .excl-bullet { color: #8B1A1A; }
+  .addexcl-box.incl { border-left: 3px solid #1B6B3A; padding-left: 12px; }
+  .addexcl-box.excl { border-left: 3px solid #8B1A1A; padding-left: 12px; }
 
   /* ── Summary ── */
   .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 0; }
@@ -258,6 +322,47 @@ function buildHTML(data) {
 </head>
 <body>
 
+<!-- ══ COVER SHEET ════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-top">
+    <img src="data:image/png;base64,${LOGO_B64}" class="cover-logo" alt="American Air">
+    <div class="cover-divider"></div>
+    <div class="cover-title">Preventative Maintenance</div>
+    <div class="cover-title" style="margin-top:-8px;">Agreement</div>
+    <div class="cover-subtitle" style="margin-top:12px;">Prepared for</div>
+
+    <div class="cover-customer-block">
+      <div class="cover-customer-name">${facility}</div>
+      ${address ? `<div class="cover-customer-address">${address}</div>` : ''}
+      ${contact ? `<div class="cover-customer-address" style="margin-top:4px;">Attn: ${contact}</div>` : ''}
+    </div>
+
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Proposal number</div>
+        <div class="cover-meta-value proposal-num">${proposalNumber}</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Date</div>
+        <div class="cover-meta-value">${date}</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Prepared by</div>
+        <div class="cover-meta-value">${salesName}</div>
+        <div style="font-size:10px;color:#888;margin-top:2px;">${salesPhone}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-bottom">
+    <div class="cover-bottom-co">American Air, Inc.</div>
+    <div class="cover-bottom-info">
+      80 Brick Kiln Road, Chelmsford MA 01824<br>
+      978-640-8880 &nbsp;&middot;&nbsp; americanairinc.com
+    </div>
+  </div>
+</div>
+
 <!-- ══ PAGE 1 ══════════════════════════════════════════════════════════════ -->
 
 <div class="doc-header">
@@ -265,7 +370,7 @@ function buildHTML(data) {
   <div class="header-right">
     Facility: <strong>${facility}</strong><br>
     Contact: <strong>${contact}</strong><br>
-    Date: <strong>${date}</strong><br>
+    Proposal: <strong>${proposalNumber}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong><br>
     Prepared by: <strong>${salesName}</strong> &nbsp;|&nbsp; ${salesPhone} &nbsp;|&nbsp; ${salesEmail}
   </div>
 </div>
@@ -290,6 +395,7 @@ ${benefitsHTML}
   <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td><td></td></tr></tfoot>
 </table>
 
+${addExclHTML}
 <div class="gap"></div>
 <div class="section-label">Agreement summary</div>
 <div class="summary-grid">
@@ -382,6 +488,7 @@ ${tcHTML}
 app.post('/generate', async (req, res) => {
   try {
     const data = req.body;
+    data.proposalNumber = getNextProposalNumber();
     const html = buildHTML(data);
 
     const browser = await puppeteer.launch({
@@ -399,7 +506,7 @@ app.post('/generate', async (req, res) => {
     });
     await browser.close();
 
-    const filename = `${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA_${data.date.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+    const filename = `${data.proposalNumber}_${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA.pdf`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdf);
