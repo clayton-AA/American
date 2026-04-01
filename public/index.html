@@ -115,6 +115,16 @@
   .preview-summary-item strong { font-weight: 500; }
   .flag strong { font-weight: 500; }
 
+  /* ── Tabs ── */
+  .tab-bar { display: flex; border-bottom: 2px solid var(--light-blue); margin-bottom: 1.25rem; }
+  .tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    background: none; border: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: color 0.15s; }
+  .tab-btn:hover { color: var(--blue); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     .preview-meta { grid-template-columns: 1fr 1fr; }
@@ -156,6 +166,15 @@
 
 <div class="layout">
   <aside class="sidebar">
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-proposal" onclick="switchTab('proposal')">Proposal</button>
+      <button class="tab-btn" id="tab-pricing" onclick="switchTab('pricing')">Pricing</button>
+    </div>
+
+    <!-- ── PROPOSAL TAB ── -->
+    <div class="tab-pane active" id="pane-proposal">
+
     <div class="section">
       <div class="section-title">Customer Info</div>
       <label>Facility / Property name</label>
@@ -186,8 +205,26 @@
       <input type="email" id="inp-sales-email" placeholder="you@americanairinc.com" oninput="refresh()">
     </div>
 
-    <div class="section pricing-section">
-      <div class="section-title">Pricing Calculator</div>
+<div class="section">
+      <div class="section-title">Additional Scope & Exclusions</div>
+      <label>Additional services included</label>
+      <textarea id="inp-additions" placeholder="e.g. Annual duct inspection, quarterly belt replacements..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
+      <label style="margin-top:10px;">Exclusions</label>
+      <textarea id="inp-exclusions" placeholder="e.g. Refrigerant not included, coil cleaning on rooftop #3 excluded..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
+    </div>
+
+<div class="section">
+      <div class="section-title">Equipment on Site</div>
+      <div class="eq-grid" id="eq-grid"></div>
+    </div>
+
+    </div><!-- end proposal pane -->
+
+    <!-- ── PRICING TAB ── -->
+    <div class="tab-pane" id="pane-pricing">
+
+    <div class="section">
+      <div class="section-title">Job Parameters</div>
       <div class="price-inputs">
         <div>
           <label>Labor rate ($/hr)</label>
@@ -206,30 +243,26 @@
           <input type="number" id="inp-material" value="25" min="0" step="1" oninput="calcPrice()">
         </div>
       </div>
-      <div class="price-breakdown" id="price-breakdown" style="display:none;">
-        <div class="price-breakdown-row"><span>Total man hours</span><span id="pb-hours">—</span></div>
-        <div class="price-breakdown-row"><span>Labor cost</span><span id="pb-labor">—</span></div>
-        <div class="price-breakdown-row"><span>Travel cost</span><span id="pb-travel">—</span></div>
-        <div class="price-breakdown-row"><span>Materials (w/ tax)</span><span id="pb-materials">—</span></div>
-        <div class="price-breakdown-row"><span>Total cost</span><span id="pb-cost">—</span></div>
-        <div class="price-breakdown-row total"><span>Sell price</span><span id="pb-sell">—</span></div>
-      </div>
-      <button class="price-apply-btn" id="price-apply-btn" style="display:none;" onclick="applyPrice()">Apply price to proposal</button>
-      <div class="price-note" id="price-note" style="display:none;">Select equipment above to calculate</div>
     </div>
 
     <div class="section">
-      <div class="section-title">Additional Scope & Exclusions</div>
-      <label>Additional services included</label>
-      <textarea id="inp-additions" placeholder="e.g. Annual duct inspection, quarterly belt replacements..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
-      <label style="margin-top:10px;">Exclusions</label>
-      <textarea id="inp-exclusions" placeholder="e.g. Refrigerant not included, coil cleaning on rooftop #3 excluded..." oninput="refresh()" rows="3" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray);resize:vertical;"></textarea>
+      <div class="section-title">Equipment & Hours</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Select equipment on the Proposal tab first. Hrs/unit defaults from your pricing model — adjust per job.</p>
+      <div id="pricing-eq-list"><p style="font-size:12px;color:var(--muted);">No equipment selected yet.</p></div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Equipment on Site</div>
-      <div class="eq-grid" id="eq-grid"></div>
+    <div class="price-breakdown" id="price-breakdown" style="display:none;">
+      <div class="price-breakdown-row"><span>Total man hours</span><span id="pb-hours">—</span></div>
+      <div class="price-breakdown-row"><span>Labor cost</span><span id="pb-labor">—</span></div>
+      <div class="price-breakdown-row"><span>Travel cost</span><span id="pb-travel">—</span></div>
+      <div class="price-breakdown-row"><span>Materials (w/ tax)</span><span id="pb-materials">—</span></div>
+      <div class="price-breakdown-row"><span>Total cost</span><span id="pb-cost">—</span></div>
+      <div class="price-breakdown-row total"><span>Sell price</span><span id="pb-sell">—</span></div>
     </div>
+    <button class="price-apply-btn" id="price-apply-btn" style="display:none;" onclick="applyPrice()">Apply price to proposal ↗</button>
+    <div class="price-note" id="price-note" style="display:none;">Select equipment on the Proposal tab to calculate</div>
+
+    </div><!-- end pricing pane -->
 
     <button class="btn-generate" id="gen-btn" onclick="generate()">
       <span id="btn-label">Generate &amp; Download PDF</span>
@@ -456,6 +489,15 @@ function clearAll() {
 }
 
 
+// ── Tab switching ────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['proposal','pricing'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t === tab);
+    document.getElementById('pane-'+t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'pricing') calcPrice();
+}
+
 // ── Pricing calculator ───────────────────────────────────────────────────
 // Hours per unit per visit type (Q1, Q2, Q3, Annual) from spreadsheet
 const EQ_HOURS = {
@@ -527,8 +569,31 @@ function calcPrice() {
   applyBtn.style.display  = 'block';
   note.style.display      = 'none';
 
+  // Render per-equipment hours list
+  const eqList = document.getElementById('pricing-eq-list');
+  if (eqList) {
+    if (active.length === 0) {
+      eqList.innerHTML = '<p style="font-size:12px;color:var(--muted);">No equipment selected yet.</p>';
+    } else {
+      eqList.innerHTML = active.map(eq => {
+        const s = state[eq.id];
+        const defHrs = EQ_HOURS[eq.id] ? (EQ_HOURS[eq.id].q + EQ_HOURS[eq.id].a) / 2 : 1.0;
+        const hrsVal = s.hrs || defHrs;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;gap:8px;">
+          <span style="font-size:12px;color:var(--gray);flex:1;">${eq.name} <span style="color:var(--muted)">×${s.qty}</span></span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+            <input type="number" min="0.25" max="24" step="0.25" value="${hrsVal}"
+              style="width:52px;padding:3px 6px;border:1px solid var(--mid-blue);border-radius:4px;font-size:12px;font-weight:500;color:var(--blue);text-align:center;background:white;"
+              oninput="state['${eq.id}'].hrs=parseFloat(this.value)||1; calcPrice();">
+            <span style="font-size:11px;color:var(--muted);">hrs/unit</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
   // Store for apply
-  window._calculatedPrice = fmt(sellPrice).replace('$','$');
+  window._calculatedPrice = fmt(sellPrice);
 }
 
 function applyPrice() {
