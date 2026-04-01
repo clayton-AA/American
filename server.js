@@ -507,6 +507,32 @@ app.post('/generate', async (req, res) => {
     await browser.close();
 
     const filename = `${data.proposalNumber}_${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA.pdf`;
+
+    // ── Log proposal to history ───────────────────────────────────────────
+    const LOG_FILE = path.join(__dirname, 'proposal_log.json');
+    try {
+      let log = [];
+      try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+      const eqSummary = data.equipment.map(e => {
+        const eq = EQ_CATALOG[e.id];
+        return eq ? `${e.qty}x ${eq.name}` : e.id;
+      }).join(', ');
+      log.unshift({
+        proposalNumber: data.proposalNumber,
+        facility:       data.facility,
+        contact:        data.contact,
+        salesName:      data.salesName,
+        salesPhone:     data.salesPhone,
+        salesEmail:     data.salesEmail,
+        date:           data.date,
+        price:          data.price,
+        duration:       data.duration,
+        equipment:      eqSummary,
+        generatedAt:    new Date().toISOString(),
+      });
+      fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+    } catch(e) { console.error('Log error:', e.message); }
+
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdf);
@@ -519,5 +545,22 @@ app.post('/generate', async (req, res) => {
   }
 });
 
+// ── Admin dashboard routes ────────────────────────────────────────────────
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'aaadmin';
+
+app.post('/admin-auth', (req, res) => {
+  const { password } = req.body;
+  res.json({ ok: password === ADMIN_PASSWORD });
+});
+
+app.get('/admin-data', (req, res) => {
+  const pw = req.headers['x-admin-password'];
+  if (pw !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+  const LOG_FILE = path.join(__dirname, 'proposal_log.json');
+  let log = [];
+  try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+  res.json(log);
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`\n  American Air Proposal Tool\n  Open: http://localhost:${PORT}\n`));
+app.listen(PORT, () => console.log(`\n  American Air Proposal Tool\n  Open: http://localhost:${PORT}\n  Dashboard: http://localhost:${PORT}/dashboard.html\n`));
