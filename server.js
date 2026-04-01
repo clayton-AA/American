@@ -73,7 +73,8 @@ const TC_SECTIONS = [
 ];
 
 function buildHTML(data) {
-  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, equipment } = data;
+  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, equipment } = data;
+  const durationLabel = duration === 1 ? '12 months' : `${duration} years`;
   const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
 
@@ -294,7 +295,7 @@ ${benefitsHTML}
 <div class="summary-grid">
   <div class="summary-box">
     <div class="summary-box-title">Pricing &amp; Terms</div>
-    <div class="summary-row"><span>Agreement term</span><strong>12 months</strong></div>
+    <div class="summary-row"><span>Agreement term</span><strong>${durationLabel}</strong></div>
     <div class="summary-row"><span>Total units</span><strong>${totalUnits}</strong></div>
     <div class="summary-row"><span>Visits per year</span><strong>${totalVisits}</strong></div>
     <div class="summary-row highlight"><span>Annual investment</span><strong>${price}</strong></div>

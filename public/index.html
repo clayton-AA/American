@@ -56,6 +56,11 @@
     font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
   .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
 
+  .dur-btn { padding: 7px; background: white; color: var(--muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: all 0.15s; font-weight: 400; }
+  .dur-btn:hover { border-color: var(--mid-blue); color: var(--blue); }
+  .dur-btn.active { background: var(--blue); color: white; border-color: var(--blue); font-weight: 500; }
   .btn-generate { width: 100%; padding: 13px; background: var(--blue); color: white; border: none;
     border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif;
     cursor: pointer; transition: background 0.15s; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -151,6 +156,12 @@
       <input type="text" id="inp-date" placeholder="e.g. April 1, 2026" oninput="refresh()">
       <label>Annual investment</label>
       <input type="text" id="inp-price" placeholder="e.g. $3,600" oninput="refresh()">
+      <label>Contract duration</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:4px;">
+        <button class="dur-btn active" id="dur-1" onclick="setDuration(1)">1 Year</button>
+        <button class="dur-btn" id="dur-2" onclick="setDuration(2)">2 Years</button>
+        <button class="dur-btn" id="dur-3" onclick="setDuration(3)">3 Years</button>
+      </div>
     </div>
 
     <div class="section">
@@ -193,7 +204,7 @@
       </div>
       <div class="preview-meta">
         <div class="preview-meta-item"><div class="preview-meta-label">Investment</div><div class="preview-meta-val" id="prev-price">—</div></div>
-        <div class="preview-meta-item"><div class="preview-meta-label">Equipment types</div><div class="preview-meta-val" id="prev-types">—</div></div>
+        <div class="preview-meta-item"><div class="preview-meta-label">Duration</div><div class="preview-meta-val" id="prev-duration">1 Year</div></div>
         <div class="preview-meta-item"><div class="preview-meta-label">Total units</div><div class="preview-meta-val" id="prev-units">—</div></div>
         <div class="preview-meta-item"><div class="preview-meta-label">Total visits / yr</div><div class="preview-meta-val" id="prev-visits">—</div></div>
       </div>
@@ -217,7 +228,18 @@ const EQ_DATA = [
 ];
 
 let state = {};
+let duration = 1;
 EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+
+function setDuration(yr) {
+  duration = yr;
+  [1,2,3].forEach(n => {
+    const btn = document.getElementById('dur-'+n);
+    btn.classList.toggle('active', n === yr);
+  });
+  document.getElementById('prev-duration').textContent = yr + ' Year' + (yr > 1 ? 's' : '');
+  refresh();
+}
 
 function buildGrid() {
   const g = document.getElementById('eq-grid');
@@ -327,6 +349,7 @@ async function generate() {
       salesEmail: gv('inp-sales-email'),
       date:       gv('inp-date'),
       price:      gv('inp-price'),
+      duration:   duration,
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
     };
 
@@ -362,6 +385,7 @@ function clearAll() {
   ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email']
     .forEach(id => document.getElementById(id).value = '');
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+  setDuration(1);
   buildGrid();
   refresh();
 }
