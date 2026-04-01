@@ -296,7 +296,8 @@ function refresh() {
   document.getElementById('prev-facility').textContent = facility || 'Customer facility';
   document.getElementById('prev-contact').textContent  = [contact, date].filter(Boolean).join(' · ') || '—';
   document.getElementById('prev-price').textContent    = price  || '—';
-  document.getElementById('prev-types').textContent    = active.length || '—';
+  if (document.getElementById('prev-types')) document.getElementById('prev-types').textContent = active.length || '—';
+  if (document.getElementById('prev-duration')) document.getElementById('prev-duration').textContent = duration + ' Year' + (duration > 1 ? 's' : '');
   document.getElementById('prev-sales-info').textContent = sName ? `${sName}${sPhone?' · '+sPhone:''}` : '—';
 
   const totalUnits  = active.reduce((s,e) => s + state[e.id].qty, 0);
