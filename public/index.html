@@ -39,7 +39,8 @@
 
   .eq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .eq-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px;
-    cursor: pointer; transition: all 0.15s; background: white; user-select: none; }
+    cursor: pointer; transition: all 0.15s; background: white; user-select: none;
+    min-width: 0; overflow: hidden; }
   .eq-card:hover { border-color: var(--mid-blue); background: #fafcff; }
   .eq-card.active { border-color: var(--blue); background: var(--light-blue); }
   .eq-card-name { font-size: 12px; font-weight: 500; color: var(--gray); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -48,10 +49,10 @@
   .eq-card.active .eq-check { background: var(--blue); border-color: var(--blue); }
   .eq-check-inner { width: 6px; height: 6px; border-radius: 50%; background: white; display: none; }
   .eq-card.active .eq-check-inner { display: block; }
-  .eq-controls { display: none; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--mid-blue); gap: 10px; align-items: center; }
+  .eq-controls { display: none; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--mid-blue); gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; }
   .eq-card.active .eq-controls { display: flex; }
   .eq-ctrl-label { font-size: 11px; color: var(--blue); white-space: nowrap; }
-  .eq-ctrl-input { width: 48px; padding: 3px 6px; border: 1px solid var(--mid-blue); border-radius: 4px;
+  .eq-ctrl-input { width: 40px; min-width: 0; padding: 3px 4px; border: 1px solid var(--mid-blue); border-radius: 4px;
     font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
   .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
 

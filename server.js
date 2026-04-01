@@ -154,33 +154,33 @@ function buildHTML(data) {
   body { font-family: 'DM Sans', Arial, sans-serif; font-size: 11px; color: #333; background: white; }
 
   /* ── Header ── */
-  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 36px 14px; border-bottom: 3px solid #1B3A6B; }
+  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 0 10px; border-bottom: 3px solid #1B3A6B; }
   .doc-header img { height: 44px; }
   .header-right { text-align: right; font-size: 10px; color: #666; line-height: 1.9; }
   .header-right strong { color: #222; }
 
   /* ── Hero ── */
-  .hero { background: #E8EEF7; padding: 16px 36px; margin-bottom: 18px; }
+  .hero { background: #E8EEF7; padding: 12px 0; margin-bottom: 18px; }
   .hero h1 { font-family: 'Playfair Display', serif; font-size: 20px; color: #1B3A6B; margin-bottom: 5px; }
   .hero p { font-size: 10.5px; color: #444; line-height: 1.5; }
 
   /* ── Section labels ── */
   .section-label { font-size: 9px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase;
-    color: #1B3A6B; border-bottom: 2px solid #1B3A6B; padding-bottom: 5px; margin: 18px 36px 10px; }
+    color: #1B3A6B; border-bottom: 2px solid #1B3A6B; padding-bottom: 5px; margin: 14px 0 8px; }
 
   /* ── Services ── */
-  .services { padding: 0 36px; }
+  .services { padding: 0; }
   .service-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
   .check { color: #1B3A6B; font-size: 13px; font-weight: bold; flex-shrink: 0; margin-top: 1px; }
   .service-title { font-weight: 500; font-size: 11px; color: #333; margin-bottom: 1px; }
   .service-desc { font-size: 10px; color: #666; line-height: 1.45; }
 
   /* ── Benefits ── */
-  .benefits-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 0 36px; }
+  .benefits-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 0; }
   .benefit { background: #F5F5F5; padding: 8px 12px; font-size: 10.5px; color: #444; border-radius: 4px; }
 
   /* ── Equipment schedule ── */
-  .eq-schedule { margin: 0 36px; width: calc(100% - 72px); border-collapse: collapse; font-size: 10.5px; }
+  .eq-schedule { margin: 0; width: 100%; border-collapse: collapse; font-size: 10.5px; }
   .eq-schedule thead th { background: #E8EEF7; color: #1B3A6B; font-weight: 500; padding: 7px 10px;
     text-align: left; border-bottom: 2px solid #1B3A6B; }
   .eq-schedule tbody td { padding: 7px 10px; border-bottom: 1px solid #E0E0E0; }
@@ -188,7 +188,7 @@ function buildHTML(data) {
   .eq-schedule tfoot td { background: #E8EEF7; color: #1B3A6B; font-weight: 500; padding: 7px 10px; border-top: 2px solid #1B3A6B; }
 
   /* ── Summary ── */
-  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 0 36px; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 0; }
   .summary-box { border: 1px solid #ddd; border-radius: 6px; padding: 12px 14px; }
   .summary-box.dark { background: #1B3A6B; border-color: #1B3A6B; }
   .summary-box-title { font-weight: 500; font-size: 11px; color: #1B3A6B; margin-bottom: 8px; }
@@ -204,7 +204,7 @@ function buildHTML(data) {
   .cta-line.name { margin-top: 10px; }
 
   /* ── Signature ── */
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 0 36px; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 0; }
   .sig-box { border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; }
   .sig-box-title { font-weight: 500; font-size: 11px; color: #1B3A6B; margin-bottom: 4px; }
   .sig-box-addr { font-size: 10px; color: #666; margin-bottom: 10px; line-height: 1.6; }
@@ -223,11 +223,11 @@ function buildHTML(data) {
   .benefits-grid{ page-break-inside: avoid; }
 
   /* ── Scope of work ── */
-  .scope-hero { background: #E8EEF7; padding: 14px 36px; margin-bottom: 16px; }
+  .scope-hero { background: #E8EEF7; padding: 12px 0; margin-bottom: 16px; }
   .scope-hero h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: #1B3A6B; margin-bottom: 4px; }
   .scope-hero p { font-size: 10px; color: #555; }
 
-  .eq-block { margin: 0 36px 18px; }
+  .eq-block { margin: 0 0 16px; }
   .eq-header { background: #1B3A6B; color: white; padding: 10px 14px; border-radius: 5px 5px 0 0;
     display: flex; justify-content: space-between; align-items: center; }
   .eq-name { font-weight: 500; font-size: 12px; }
@@ -243,10 +243,10 @@ function buildHTML(data) {
     border-top: 1px solid #ddd; border-radius: 0 0 5px 5px; }
 
   /* ── T&C ── */
-  .tc-hero { background: #E8EEF7; padding: 14px 36px; margin-bottom: 16px; }
+  .tc-hero { background: #E8EEF7; padding: 12px 0; margin-bottom: 16px; }
   .tc-hero h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: #1B3A6B; margin-bottom: 4px; }
   .tc-hero p { font-size: 10px; color: #555; }
-  .tc-section { padding: 0 36px; margin-bottom: 10px; }
+  .tc-section { padding: 0; margin-bottom: 10px; }
   .tc-heading { font-weight: 500; font-size: 11px; color: #1B3A6B; margin-bottom: 4px; margin-top: 12px; }
   .tc-body { font-size: 10px; color: #444; line-height: 1.6; margin-bottom: 4px; text-align: justify; }
 
@@ -355,7 +355,7 @@ ${benefitsHTML}
 
 ${eqScopeHTML}
 
-<p style="font-size:9.5px;color:#888;font-style:italic;padding:10px 36px;border-top:1px solid #ddd;margin:0 36px;">
+<p style="font-size:9.5px;color:#888;font-style:italic;padding:8px 0;border-top:1px solid #ddd;margin:0;">
   This scope of work applies to all units of each type listed above. Additional findings or repairs outside this scope will be presented in writing for customer approval prior to any work being performed.
 </p>
 
@@ -394,7 +394,7 @@ app.post('/generate', async (req, res) => {
     const pdf = await page.pdf({
       format: 'Letter',
       printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0.5in', left: '0' }
+      margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
     });
     await browser.close();
 
