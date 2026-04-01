@@ -81,6 +81,11 @@
   .rep-badge { display: inline-block; background: var(--light-blue); color: var(--blue); font-size: 11px; padding: 3px 9px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
   .duration-badge { display: inline-block; background: #f0f0f0; color: #555; font-size: 11px; padding: 3px 9px; border-radius: 10px; }
 
+  .dl-btn { padding: 5px 12px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue);
+    border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block; }
+  .dl-btn:hover { background: var(--mid-blue); }
+
   /* ── Empty state ── */
   .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
   .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--gray); }
@@ -159,6 +164,7 @@
           <th onclick="sortBy('salesName')">Salesperson <span class="sort-arrow">↕</span></th>
           <th onclick="sortBy('date')">Date <span class="sort-arrow">↕</span></th>
           <th onclick="sortBy('price')">Annual Investment <span class="sort-arrow">↕</span></th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="proposals-body"></tbody>
@@ -351,8 +357,17 @@ function renderTable(proposals) {
       <td><span class="rep-badge">${p.salesName || '—'}</span></td>
       <td><div class="date-val">${genDate}</div></td>
       <td><div class="price-val">${p.price || '—'}</div></td>
+      <td><button class="dl-btn" onclick="redownload('${p.proposalNumber}')">&#8595; PDF</button></td>
     </tr>`;
   }).join('');
+}
+
+function redownload(proposalNumber) {
+  const url = `/download/${proposalNumber}?pw=${encodeURIComponent(adminPw)}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${proposalNumber}_PMA.pdf`;
+  a.click();
 }
 
 // Auto-login if session has admin password

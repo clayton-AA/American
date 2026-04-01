@@ -508,6 +508,11 @@ app.post('/generate', async (req, res) => {
 
     const filename = `${data.proposalNumber}_${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA.pdf`;
 
+    // ── Save PDF to disk ──────────────────────────────────────────────────
+    const PDF_DIR = path.join(__dirname, 'pdfs');
+    if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR);
+    fs.writeFileSync(path.join(PDF_DIR, `${data.proposalNumber}.pdf`), pdf);
+
     // ── Log proposal to history ───────────────────────────────────────────
     const LOG_FILE = path.join(__dirname, 'proposal_log.json');
     try {
@@ -543,6 +548,20 @@ app.post('/generate', async (req, res) => {
       res.status(500).json({ error: err.message || String(err) });
     }
   }
+});
+
+// ── Re-download saved PDF ────────────────────────────────────────────────
+app.get('/download/:proposalNumber', (req, res) => {
+  const pw = req.headers['x-admin-password'] || req.query.pw || '';
+  const SITE_PW = process.env.SITE_PASSWORD || 'americanair';
+  const ADMIN_PW = process.env.ADMIN_PASSWORD || 'aaadmin';
+  if (pw !== SITE_PW && pw !== ADMIN_PW) return res.status(401).json({ error: 'Unauthorized' });
+  const num = req.params.proposalNumber.replace(/[^a-zA-Z0-9\-]/g, '');
+  const filePath = path.join(__dirname, 'pdfs', `${num}.pdf`);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'PDF not found' });
+  res.setHeader('Content-Disposition', `attachment; filename="${num}_PMA.pdf"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.send(fs.readFileSync(filePath));
 });
 
 // ── Admin dashboard routes ────────────────────────────────────────────────
