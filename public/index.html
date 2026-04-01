@@ -313,7 +313,12 @@ async function generate() {
       body:    JSON.stringify(payload),
     });
 
-    if (!resp.ok) { const err = await resp.json(); throw new Error(err.error); }
+    if (!resp.ok) {
+      let msg = 'Server error ' + resp.status;
+      try { const err = await resp.json(); msg = err.error || msg; }
+      catch(e) { try { msg = await resp.text(); } catch(e2) {} }
+      throw new Error(msg);
+    }
 
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);

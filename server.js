@@ -375,8 +375,10 @@ app.post('/generate', async (req, res) => {
     res.send(pdf);
 
   } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error('PDF generation error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
   }
 });
 
