@@ -7,6 +7,28 @@ const path = require('path');
 const app = express();
 
 app.use(express.json({ limit: '5mb' }));
+
+// ── Password protection ───────────────────────────────────────────────────
+const SITE_PASSWORD = process.env.SITE_PASSWORD || 'americanair';
+
+app.post('/auth', (req, res) => {
+  const { password } = req.body;
+  if (password === SITE_PASSWORD) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ ok: false });
+  }
+});
+
+// Protect /generate — check password header
+app.use('/generate', (req, res, next) => {
+  const pw = req.headers['x-site-password'];
+  if (pw !== SITE_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const LOGO_B64 = fs.readFileSync(path.join(__dirname, 'public', 'logo.png')).toString('base64');

@@ -102,9 +102,31 @@
     .preview-meta { grid-template-columns: 1fr 1fr; }
     .preview-cat-grid { grid-template-columns: 1fr 1fr; }
   }
+
+  .login-overlay { position: fixed; inset: 0; background: #1B3A6B; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  .login-box { background: white; border-radius: 12px; padding: 2.5rem 2rem; width: 340px; text-align: center; }
+  .login-logo { height: 48px; margin-bottom: 1.5rem; }
+  .login-title { font-family: 'Playfair Display', serif; font-size: 18px; color: #1B3A6B; margin-bottom: 6px; }
+  .login-sub { font-size: 12px; color: #888; margin-bottom: 1.5rem; }
+  .login-input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: 'DM Sans', sans-serif; margin-bottom: 12px; text-align: center; letter-spacing: 2px; }
+  .login-input:focus { outline: none; border-color: #1B3A6B; }
+  .login-btn { width: 100%; padding: 11px; background: #1B3A6B; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .login-btn:hover { background: #152d54; }
+  .login-error { color: #c0392b; font-size: 12px; margin-top: 8px; display: none; }
 </style>
 </head>
 <body>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <img src="logo.png" class="login-logo" alt="American Air">
+    <div class="login-title">Proposal Builder</div>
+    <div class="login-sub">Enter your password to continue</div>
+    <input type="password" class="login-input" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error">Incorrect password. Try again.</div>
+  </div>
+</div>
 
 <div class="topbar">
   <img src="logo.png" alt="American Air">
@@ -309,7 +331,7 @@ async function generate() {
 
     const resp = await fetch('/generate', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
       body:    JSON.stringify(payload),
     });
 
@@ -341,6 +363,29 @@ function clearAll() {
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
   buildGrid();
   refresh();
+}
+
+
+async function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  const resp = await fetch('/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw })
+  });
+  if (resp.ok) {
+    sessionStorage.setItem('sitePassword', pw);
+    document.getElementById('login-overlay').style.display = 'none';
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+
+// Auto-hide overlay if already authenticated this session
+if (sessionStorage.getItem('sitePassword')) {
+  document.getElementById('login-overlay').style.display = 'none';
 }
 
 buildGrid();
