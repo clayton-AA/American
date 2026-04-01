@@ -192,6 +192,13 @@ function buildHTML(data) {
 
   /* ── Page breaks ── */
   .page-break { page-break-before: always; }
+  .summary-grid { page-break-inside: avoid; }
+  .summary-box  { page-break-inside: avoid; }
+  .sig-grid     { page-break-inside: avoid; }
+  .sig-box      { page-break-inside: avoid; }
+  .section-label { page-break-after: avoid; }
+  .services     { page-break-inside: avoid; }
+  .benefits-grid{ page-break-inside: avoid; }
 
   /* ── Scope of work ── */
   .scope-hero { background: #E8EEF7; padding: 14px 36px; margin-bottom: 16px; }
