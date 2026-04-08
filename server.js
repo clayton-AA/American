@@ -89,11 +89,7 @@ function buildHTML(data) {
   const pt = priceTable || {};
   const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
   const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
-  const pt = priceTable || {};
-  const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
-  const payLabel = { monthly: 'Monthly', service: 'At time of service', upfront: 'Upfront / annual' };
-  const paymentLabel = payLabel[pt.paymentTerm] || 'Monthly';
-  const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
+
   const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
 
