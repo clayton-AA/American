@@ -408,21 +408,11 @@ function clearAll() {
     document.getElementById(id).classList.add('empty');
   });
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
-  ['inp-labor-rate','inp-travel','inp-margin','inp-material'].forEach(id => {
-    const defaults = {'inp-labor-rate':'149','inp-travel':'1','inp-margin':'50','inp-material':'25'};
-    document.getElementById(id).value = defaults[id];
-  });
   buildGrid();
   refresh();
 }
 
-
-
-}
-
 // ── Pricing table calculator ─────────────────────────────────────────────
-let paymentTerm = 'monthly';
-
 function calcPriceTable() {
   const fmt = (n) => n > 0 ? '$' + Math.round(n).toLocaleString() : null;
   const pairs = [
