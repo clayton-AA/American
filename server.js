@@ -85,13 +85,15 @@ const TC_SECTIONS = [
 ];
 
 function buildHTML(data) {
-  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, priceTable, additions, exclusions, equipment, proposalNumber } = data;
+  const { facility, address, contact, salesName, salesPhone, salesEmail, date, priceTable, additions, exclusions, equipment, proposalNumber } = data;
+  const pt = priceTable || {};
+  const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
+  const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
   const pt = priceTable || {};
   const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
   const payLabel = { monthly: 'Monthly', service: 'At time of service', upfront: 'Upfront / annual' };
   const paymentLabel = payLabel[pt.paymentTerm] || 'Monthly';
   const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
-  const durationLabel = duration === 1 ? '12 months' : `${duration} years`;
   const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
 
@@ -344,6 +346,8 @@ function buildHTML(data) {
   .section-label { page-break-after: avoid; }
   .services     { page-break-inside: avoid; }
   .benefits-grid{ page-break-inside: avoid; }
+  .pricing-sel-table { page-break-inside: avoid; }
+  .pricing-footer { page-break-inside: avoid; }
 
   /* ── Pricing selection table ── */
   .pricing-sel-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
@@ -479,33 +483,12 @@ ${benefitsHTML}
   <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td><td></td></tr></tfoot>
 </table>
 
-${pricingTableHTML}
 ${addExclHTML}
-<div class="gap"></div>
-<div class="section-label">Agreement summary</div>
-<div class="summary-grid">
-  <div class="summary-box">
-    <div class="summary-box-title">Pricing &amp; Terms</div>
-    <div class="summary-row"><span>Agreement term</span><strong>${durationLabel}</strong></div>
-    <div class="summary-row"><span>Total units</span><strong>${totalUnits}</strong></div>
-    <div class="summary-row"><span>Visits per year</span><strong>${totalVisits}</strong></div>
-    <div class="summary-row highlight"><span>Annual investment</span><strong>${price}</strong></div>
-  </div>
-  <div class="summary-box">
-    <div class="summary-box-title">Our Commitment to You</div>
-    <p class="summary-desc">Every visit is performed by a trained, licensed HVAC technician familiar with your facility. We document all findings digitally and communicate clearly — no surprises, no upsells you didn't ask for.</p>
-  </div>
-  <div class="summary-box dark">
-    <div class="summary-box-title">Ready to Get Started?</div>
-    <p class="cta-line muted">Contact us to confirm your first visit date and finalize this agreement.</p>
-    <p class="cta-line" style="margin-top:8px"><strong>americanairinc.com</strong></p>
-    <p class="cta-line">978-640-8880</p>
-    <p class="cta-line name">${salesName}</p>
-    <p class="cta-line muted">${salesPhone} &nbsp;|&nbsp; ${salesEmail}</p>
-  </div>
-</div>
 
-<div class="gap"></div>
+<div class="page-break"></div>
+<div style="page-break-inside: avoid;">
+${pricingTableHTML}
+<div class="gap-sm"></div>
 <div class="section-label">Agreement execution</div>
 <div class="sig-grid">
   <div class="sig-box">
@@ -531,6 +514,7 @@ ${addExclHTML}
     ${sigLine('Date')}
   </div>
 </div>
+</div><!-- end keep-together -->
 
 <!-- ══ PAGE 2 — SCOPE ══════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
