@@ -53,6 +53,7 @@ const EQ_CATALOG = {
   vav:    { name:'VAV Box',                     cats:{ 'Controls':['Actuator operation & calibration','Thermostat / zone sensor accuracy','Test all safety controls','Test all controls & sequences','Setpoints & schedules verified','Occupied / unoccupied schedules'], 'Mechanical':['Damper blade condition & seating','Linkage — tighten & lubricate','Box casing & insulation integrity','Flow measurement if applicable'], 'Heating':['Hot water coil operation if applicable','Control valve — stroke & seating','Reheat sequence of operation','Overall condition of box'], 'Electrical':['All electrical connections','Control board & wiring','24V transformer output','Overall condition'] } },
   reznor: { name:'Reznor / Unit Heater',        cats:{ 'Combustion':['Burner assembly & orifices','Ignition sequence of operation','Burner sequence of operation','Gas valve operation & pressure'], 'Heat Exchanger':['Cracks, corrosion & deterioration','Flue & venting — blockage & condition','Combustion air — adequate supply','CO test if applicable'], 'Electrical':['All electrical connections','Test all safety controls','Test all controls & sequences','Thermostat calibration','Blower motor amps if applicable'], 'General':['Fan blade & housing condition','Filters if applicable','Overall unit condition','Recommend service if needed'] } },
   mau:    { name:'Make-Up Air Unit (MAU)',       cats:{ 'Air':['Filters — inspect / replace per contract','Fan wheel — clean & balance check','Belts — inspect / replace per contract','Sheaves — wear & alignment'], 'Heating / Cooling':['Heat exchanger if applicable','Gas valve & burner sequence','Cooling coil & refrigerant check','Economizer operation','Pressure controller — check & adjust if applicable'], 'Electrical':['All electrical connections','Contactors & starters for wear','Test all safety controls','Test all controls & sequences','Overall electrical condition'], 'General':['Louvers & dampers — operation','Lubricate dampers','Drain pan & condensate line','Lubricate all serviceable bearings','Overall condition of unit'] } },
+  exhaust: { name:'Exhaust / Supply Fan', cats:{ 'Mechanical':['Belt condition & tension — inspect / replace per contract','Sheaves — wear & alignment','Lubricate motor & fan bearings','Fan blade & housing — inspect & clean'], 'Electrical':['All electrical connections','Volts/amps — motor','Test all safety controls','Test all controls & sequences'], 'General':['Damper operation if applicable','Overall condition of unit','Recommend service if needed','Verify airflow & operation'] } },
   erv:    { name:'ERV / HRV',                   cats:{ 'Core & Filters':['Heat / energy recovery core — inspect & clean','Filters — clean or replace per contract','Core bypass damper operation','Defrost cycle operation if applicable'], 'Mechanical':['Fan wheels — clean & condition','Energy recovery wheel & belt — inspect & condition','Belts if applicable','Lubricate all serviceable bearings','Condensate drain if applicable'], 'Controls':['Controls & setpoints verified','Test all safety controls','Test all controls & sequences','Enthalpy sensors if applicable','Occupied / unoccupied schedules','Airflow verification'], 'General':['All electrical connections','Housing integrity & seals','Overall condition of unit','Recommend service if needed'] } },
 };
 
@@ -187,7 +188,7 @@ function buildHTML(data) {
   const eqScheduleRows = equipment.map((e, i) => {
     const eq = EQ_CATALOG[e.id];
     return `<tr class="${i%2===1?'alt':''}">
-      <td>${eq.name}</td><td>${e.qty}</td><td>${e.visits}</td><td></td>
+      <td>${eq.name}</td><td>${e.qty}</td><td></td>
     </tr>`;
   }).join('');
 
@@ -474,9 +475,9 @@ ${benefitsHTML}
 <div class="gap"></div>
 <div class="section-label">Covered equipment schedule</div>
 <table class="eq-schedule">
-  <thead><tr><th style="width:45%">Equipment Type</th><th style="width:10%">Qty</th><th style="width:15%">Visits / Yr</th><th>Model / Serial / Notes</th></tr></thead>
+  <thead><tr><th style="width:45%">Equipment Type</th><th style="width:10%">Qty</th><th>Model / Serial / Notes</th></tr></thead>
   <tbody>${eqScheduleRows}</tbody>
-  <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td><td></td></tr></tfoot>
+  <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td></tr></tfoot>
 </table>
 
 ${addExclHTML}
