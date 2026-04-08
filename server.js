@@ -85,7 +85,12 @@ const TC_SECTIONS = [
 ];
 
 function buildHTML(data) {
-  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, additions, exclusions, equipment, proposalNumber } = data;
+  const { facility, address, contact, salesName, salesPhone, salesEmail, date, price, duration, priceTable, additions, exclusions, equipment, proposalNumber } = data;
+  const pt = priceTable || {};
+  const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
+  const payLabel = { monthly: 'Monthly', service: 'At time of service', upfront: 'Upfront / annual' };
+  const paymentLabel = payLabel[pt.paymentTerm] || 'Monthly';
+  const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
   const durationLabel = duration === 1 ? '12 months' : `${duration} years`;
   const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
@@ -105,6 +110,59 @@ function buildHTML(data) {
       <div class="benefit">&#10003;&nbsp; Manufacturer warranty support</div>
       <div class="benefit">&#10003;&nbsp; Dedicated Account Manager</div>
     </div>`;
+
+  // ── Pricing selection table ─────────────────────────────────────────────
+  const pricingTableHTML = hasPrices ? `
+  <div class="section-label">Service agreement options</div>
+  <table class="pricing-sel-table">
+    <thead>
+      <tr>
+        <th style="width:18%">Term</th>
+        <th style="width:26%">Quarterly<br><span style="font-size:9px;font-weight:400;opacity:0.8">(4 visits/yr)</span></th>
+        <th style="width:26%">Semi-Annual<br><span style="font-size:9px;font-weight:400;opacity:0.8">(2 visits/yr)</span></th>
+        <th style="width:26%">Annual<br><span style="font-size:9px;font-weight:400;opacity:0.8">(1 visit/yr)</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="term-label">1 Year</td>
+        <td class="price-cell">${fmtP(pt.y1q)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y1s)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y1a)}<div class="sel-box"></div></td>
+      </tr>
+      <tr class="disc-row">
+        <td class="term-label">3 Year <span class="disc-badge">3% off</span></td>
+        <td class="price-cell">${fmtP(pt.y3q)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y3s)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y3a)}<div class="sel-box"></div></td>
+      </tr>
+      <tr class="disc-row">
+        <td class="term-label">5 Year <span class="disc-badge">5% off</span></td>
+        <td class="price-cell">${fmtP(pt.y5q)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y5s)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y5a)}<div class="sel-box"></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pricing-footer">
+    <div class="pricing-lock">
+      <span class="lock-icon">&#9650;</span>
+      <span><strong>Lock in your rate today.</strong> Prices are subject to change. Multi-year agreements guarantee your rate for the full term — protecting you from future increases in labor and material costs.</span>
+    </div>
+    <div class="payment-terms-row">
+      <span class="payment-label">Preferred payment terms:</span>
+      <span class="payment-opt ${pt.paymentTerm === 'monthly' ? 'selected' : ''}">&#9633; Monthly</span>
+      <span class="payment-opt ${pt.paymentTerm === 'service' ? 'selected' : ''}">&#9633; At time of service</span>
+      <span class="payment-opt ${pt.paymentTerm === 'upfront' ? 'selected' : ''}">&#9633; Upfront / annual</span>
+    </div>
+    <div class="initial-row">
+      <span>Customer initial: ____________</span>
+      <span style="margin-left:40px;">Date: ____________</span>
+    </div>
+  </div>
+  <div class="gap"></div>
+  ` : '';
 
   // Build additions / exclusions sections
   const addExclHTML = (() => {
@@ -287,6 +345,32 @@ function buildHTML(data) {
   .services     { page-break-inside: avoid; }
   .benefits-grid{ page-break-inside: avoid; }
 
+  /* ── Pricing selection table ── */
+  .pricing-sel-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+  .pricing-sel-table thead th { background: #1B3A6B; color: white; padding: 8px 10px; text-align: center;
+    font-weight: 500; font-size: 11px; line-height: 1.4; }
+  .pricing-sel-table thead th:first-child { text-align: left; }
+  .pricing-sel-table tbody td { padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .pricing-sel-table tbody tr:last-child td { border-bottom: none; }
+  .pricing-sel-table tbody tr:hover { background: #fafbfd; }
+  .term-label { font-weight: 500; color: #1B3A6B; font-size: 11px; }
+  .price-cell { text-align: center; font-size: 13px; font-weight: 500; color: #333; }
+  .price-cell .sel-box { width: 14px; height: 14px; border: 1.5px solid #999; border-radius: 2px;
+    display: inline-block; margin-left: 10px; vertical-align: middle; }
+  .disc-row td { background: #F7F9FC; }
+  .disc-badge { font-size: 9px; font-weight: 500; background: #E8EEF7; color: #1B3A6B;
+    padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .pricing-footer { margin-top: 10px; padding: 10px 14px; background: #F7F9FC; border-radius: 6px;
+    border: 1px solid #E8EEF7; }
+  .pricing-lock { display: flex; gap: 8px; align-items: flex-start; font-size: 10px; color: #444;
+    line-height: 1.55; margin-bottom: 10px; }
+  .lock-icon { color: #1B3A6B; font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .payment-terms-row { display: flex; align-items: center; gap: 16px; font-size: 11px; margin-bottom: 8px; flex-wrap: wrap; }
+  .payment-label { font-weight: 500; color: #1B3A6B; }
+  .payment-opt { color: #555; }
+  .payment-opt.selected { font-weight: 500; color: #1B3A6B; }
+  .initial-row { font-size: 11px; color: #555; margin-top: 6px; }
+
   /* ── Scope of work ── */
   .scope-hero { background: #E8EEF7; padding: 12px 0; margin-bottom: 16px; }
   .scope-hero h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: #1B3A6B; margin-bottom: 4px; }
@@ -395,6 +479,7 @@ ${benefitsHTML}
   <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td><td></td></tr></tfoot>
 </table>
 
+${pricingTableHTML}
 ${addExclHTML}
 <div class="gap"></div>
 <div class="section-label">Agreement summary</div>

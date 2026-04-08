@@ -56,6 +56,28 @@
     font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
   .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
 
+  /* ── Pricing table ── */
+  .price-table-section { margin-bottom: 1.75rem; }
+  .price-grid { display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .price-grid-header { font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--blue); text-align: center; padding: 4px 0; }
+  .price-grid-label { font-size: 12px; font-weight: 500; color: var(--gray); display: flex; align-items: center; }
+  .price-grid-input { position: relative; }
+  .price-grid-input input { width: 100%; padding: 7px 8px 7px 18px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--gray); }
+  .price-grid-input input:focus { outline: none; border-color: var(--blue); }
+  .price-grid-input::before { content: '$'; position: absolute; left: 7px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; color: var(--muted); pointer-events: none; z-index: 1; }
+  .price-grid-calc { display: flex; align-items: center; justify-content: center; background: var(--light-blue);
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--blue); padding: 7px 8px; }
+  .price-grid-calc.empty { color: #aaa; font-size: 11px; font-weight: 400; }
+  .payment-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .payment-btn { padding: 7px 4px; background: white; color: var(--muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 11px; font-weight: 400; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; text-align: center; transition: all 0.15s; }
+  .payment-btn:hover { border-color: var(--mid-blue); color: var(--blue); }
+  .payment-btn.active { background: var(--blue); color: white; border-color: var(--blue); font-weight: 500; }
+
   .dur-btn { padding: 7px; background: white; color: var(--muted); border: 1px solid var(--border);
     border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif;
     cursor: pointer; transition: all 0.15s; font-weight: 400; }
@@ -162,6 +184,38 @@
         <button class="dur-btn active" id="dur-1" onclick="setDuration(1)">1 Year</button>
         <button class="dur-btn" id="dur-2" onclick="setDuration(2)">2 Years</button>
         <button class="dur-btn" id="dur-3" onclick="setDuration(3)">3 Years</button>
+      </div>
+    </div>
+
+    <div class="section price-table-section">
+      <div class="section-title">Service Pricing</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">Enter 1-year prices below. 3-year (3% off) and 5-year (5% off) calculate automatically.</p>
+      <div class="price-grid">
+        <div class="price-grid-header"></div>
+        <div class="price-grid-header">Quarterly</div>
+        <div class="price-grid-header">Semi-Annual</div>
+        <div class="price-grid-header">Annual</div>
+
+        <div class="price-grid-label">1 Year</div>
+        <div class="price-grid-input"><input type="number" id="p-1-q" placeholder="0" min="0" step="1" oninput="calcPriceTable()"></div>
+        <div class="price-grid-input"><input type="number" id="p-1-s" placeholder="0" min="0" step="1" oninput="calcPriceTable()"></div>
+        <div class="price-grid-input"><input type="number" id="p-1-a" placeholder="0" min="0" step="1" oninput="calcPriceTable()"></div>
+
+        <div class="price-grid-label">3 Year</div>
+        <div class="price-grid-calc empty" id="p-3-q">—</div>
+        <div class="price-grid-calc empty" id="p-3-s">—</div>
+        <div class="price-grid-calc empty" id="p-3-a">—</div>
+
+        <div class="price-grid-label">5 Year</div>
+        <div class="price-grid-calc empty" id="p-5-q">—</div>
+        <div class="price-grid-calc empty" id="p-5-s">—</div>
+        <div class="price-grid-calc empty" id="p-5-a">—</div>
+      </div>
+      <label style="margin-top:12px;">Payment terms</label>
+      <div class="payment-options">
+        <button class="payment-btn active" id="pay-monthly" onclick="setPayment('monthly')">Monthly</button>
+        <button class="payment-btn" id="pay-service" onclick="setPayment('service')">At time of service</button>
+        <button class="payment-btn" id="pay-upfront" onclick="setPayment('upfront')">Upfront / annual</button>
       </div>
     </div>
 
@@ -360,6 +414,7 @@ async function generate() {
       date:       gv('inp-date'),
       price:      gv('inp-price'),
       duration:   duration,
+      priceTable: getPriceTable(),
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
@@ -394,8 +449,13 @@ async function generate() {
 }
 
 function clearAll() {
-  ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email','inp-additions','inp-exclusions']
+  ['inp-facility','inp-address','inp-contact','inp-date','inp-price','inp-sales-name','inp-sales-phone','inp-sales-email','inp-additions','inp-exclusions','p-1-q','p-1-s','p-1-a']
     .forEach(id => document.getElementById(id).value = '');
+  ['p-3-q','p-3-s','p-3-a','p-5-q','p-5-s','p-5-a'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+    document.getElementById(id).classList.add('empty');
+  });
+  setPayment('monthly');
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
   setDuration(1);
   ['inp-labor-rate','inp-travel','inp-margin','inp-material'].forEach(id => {
@@ -413,6 +473,59 @@ function applyPrice() {
     document.getElementById('inp-price').value = window._calculatedPrice;
     refresh();
   }
+}
+
+// ── Pricing table calculator ─────────────────────────────────────────────
+let paymentTerm = 'monthly';
+
+function setPayment(term) {
+  paymentTerm = term;
+  ['monthly','service','upfront'].forEach(t => {
+    document.getElementById('pay-'+t).classList.toggle('active', t === term);
+  });
+}
+
+function calcPriceTable() {
+  const fmt = (n) => n > 0 ? '$' + Math.round(n).toLocaleString() : null;
+  const pairs = [
+    ['p-1-q', 'p-3-q', 'p-5-q'],
+    ['p-1-s', 'p-3-s', 'p-5-s'],
+    ['p-1-a', 'p-3-a', 'p-5-a'],
+  ];
+  pairs.forEach(([id1, id3, id5]) => {
+    const val = parseFloat(document.getElementById(id1).value) || 0;
+    const v3  = val > 0 ? val * 0.97 : 0;
+    const v5  = val > 0 ? val * 0.95 : 0;
+
+    const el3 = document.getElementById(id3);
+    const el5 = document.getElementById(id5);
+
+    if (v3 > 0) {
+      el3.textContent = fmt(v3);
+      el3.classList.remove('empty');
+    } else {
+      el3.textContent = '—';
+      el3.classList.add('empty');
+    }
+    if (v5 > 0) {
+      el5.textContent = fmt(v5);
+      el5.classList.remove('empty');
+    } else {
+      el5.textContent = '—';
+      el5.classList.add('empty');
+    }
+  });
+}
+
+function getPriceTable() {
+  const get = (id) => parseFloat(document.getElementById(id).value) || 0;
+  const calc = (v, disc) => v > 0 ? Math.round(v * disc) : null;
+  return {
+    y1q: get('p-1-q'), y1s: get('p-1-s'), y1a: get('p-1-a'),
+    y3q: calc(get('p-1-q'), 0.97), y3s: calc(get('p-1-s'), 0.97), y3a: calc(get('p-1-a'), 0.97),
+    y5q: calc(get('p-1-q'), 0.95), y5s: calc(get('p-1-s'), 0.95), y5a: calc(get('p-1-a'), 0.95),
+    paymentTerm,
+  };
 }
 
 async function doLogin() {
