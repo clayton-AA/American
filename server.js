@@ -1,27 +1,30 @@
 
 const express = require('express');
 const puppeteer = require('puppeteer-core');
-const chromium  = require('@sparticuz/chromium');
-const fs        = require('fs');
-const path      = require('path');
-const https     = require('https');
-const crypto    = require('crypto');
+const https  = require('https');
+const crypto = require('crypto');
+const chromium = require('@sparticuz/chromium');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 
 app.use(express.json({ limit: '5mb' }));
 
-// ── DocuSign config ───────────────────────────────────────────────────────────
-const DS_INT_KEY    = process.env.DOCUSIGN_INTEGRATION_KEY || '';
-const DS_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID     || '';
-const DS_USER_ID    = process.env.DOCUSIGN_USER_ID         || '';
-const DS_PRIVATE_KEY= (process.env.DOCUSIGN_PRIVATE_KEY   || '').replace(/\\n/g,'\n');
+// ── DocuSign ──────────────────────────────────────────────────────────────────
+const DS_INT_KEY     = process.env.DOCUSIGN_INTEGRATION_KEY || '';
+const DS_ACCOUNT_ID  = process.env.DOCUSIGN_ACCOUNT_ID      || '';
+const DS_USER_ID     = process.env.DOCUSIGN_USER_ID         || '';
+const DS_PRIVATE_KEY = (process.env.DOCUSIGN_PRIVATE_KEY    || '').replace(/\\n/g, '\n');
 
 function httpsReq(options, body) {
   return new Promise((resolve, reject) => {
     const req = https.request(options, res => {
       let d = '';
       res.on('data', c => d += c);
-      res.on('end', () => { try { resolve({ status: res.statusCode, body: JSON.parse(d) }); } catch(e) { resolve({ status: res.statusCode, body: d }); } });
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(d) }); }
+        catch(e) { resolve({ status: res.statusCode, body: d }); }
+      });
     });
     req.on('error', reject);
     if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
@@ -30,50 +33,84 @@ function httpsReq(options, body) {
 }
 
 async function getDSToken() {
-  const header  = { alg:'RS256', typ:'JWT' };
-  const now     = Math.floor(Date.now()/1000);
-  const payload = { iss: DS_INT_KEY, sub: DS_USER_ID, aud:'account-d.docusign.com', iat: now, exp: now+3600, scope:'signature impersonation' };
-  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const unsigned = `${b64(header)}.${b64(payload)}`;
+  if (!DS_INT_KEY || !DS_USER_ID || !DS_PRIVATE_KEY) {
+    throw new Error('DocuSign environment variables not configured. Need DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, DOCUSIGN_PRIVATE_KEY');
+  }
+
+  const header  = { alg: 'RS256', typ: 'JWT' };
+  const now     = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss:   DS_INT_KEY,
+    sub:   DS_USER_ID,
+    aud:   'account-d.docusign.com',
+    iat:   now,
+    exp:   now + 3600,
+    scope: 'signature impersonation',
+  };
+
+  const b64url = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const unsigned = `${b64url(header)}.${b64url(payload)}`;
+
+  // Log JWT details for debugging
+  console.log('DS JWT - INT_KEY:', DS_INT_KEY.substring(0,8) + '...');
+  console.log('DS JWT - USER_ID:', DS_USER_ID.substring(0,8) + '...');
+  console.log('DS JWT - KEY starts with:', DS_PRIVATE_KEY.substring(0,40));
+
   const sign = crypto.createSign('RSA-SHA256');
   sign.update(unsigned);
-  const jwt = `${unsigned}.${sign.sign(DS_PRIVATE_KEY,'base64url')}`;
+  const sig = sign.sign(DS_PRIVATE_KEY, 'base64url');
+  const jwt = `${unsigned}.${sig}`;
+
   const body = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`;
-  const resp = await httpsReq({ hostname:'account-d.docusign.com', path:'/oauth/token', method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)} }, body);
-  if (!resp.body.access_token) throw new Error('DocuSign auth failed: ' + JSON.stringify(resp.body));
+  const opts = {
+    hostname: 'account-d.docusign.com',
+    path:     '/oauth/token',
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+  };
+
+  const resp = await httpsReq(opts, body);
+  console.log('DS token response status:', resp.status);
+  console.log('DS token response body:', JSON.stringify(resp.body));
+
+  if (!resp.body.access_token) {
+    throw new Error('DocuSign auth failed: ' + JSON.stringify(resp.body));
+  }
   return resp.body.access_token;
 }
 
 async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail }) {
-  const token = await getDSToken();
+  const token    = await getDSToken();
   const envelope = {
     emailSubject: `Preventative Maintenance Agreement — Please Sign`,
-    emailBlurb:   `Please review and sign your Preventative Maintenance Agreement with American Air, Inc.`,
+    emailBlurb:   `Please review and sign your Preventative Maintenance Agreement with American Air, Inc. Once signed it will be routed to your account manager for countersignature.`,
     documents: [{ documentBase64: pdfBuffer.toString('base64'), name: filename, fileExtension: 'pdf', documentId: '1' }],
     recipients: {
       signers: [
-        { email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
+        {
+          email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:'2', xPosition:'60',  yPosition:'620' }],
-            dateSignedTabs: [{ documentId:'1', pageNumber:'2', xPosition:'330', yPosition:'620' }],
-            initialHereTabs:[{ documentId:'1', pageNumber:'2', xPosition:'60',  yPosition:'540', scaleValue:'0.6' }],
+            signHereTabs:    [{ documentId:'1', pageNumber:'2', xPosition:'60',  yPosition:'620' }],
+            dateSignedTabs:  [{ documentId:'1', pageNumber:'2', xPosition:'330', yPosition:'620' }],
+            initialHereTabs: [{ documentId:'1', pageNumber:'2', xPosition:'60',  yPosition:'540', scaleValue:'0.6' }],
             checkboxTabs: [
-              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'175', tabLabel:'Q1yr'  },
-              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'175', tabLabel:'SA1yr' },
-              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'175', tabLabel:'A1yr'  },
-              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'210', tabLabel:'Q3yr'  },
-              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'210', tabLabel:'SA3yr' },
-              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'210', tabLabel:'A3yr'  },
-              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'245', tabLabel:'Q5yr'  },
-              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'245', tabLabel:'SA5yr' },
-              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'245', tabLabel:'A5yr'  },
+              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'175', tabLabel:'Q1yr'       },
+              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'175', tabLabel:'SA1yr'      },
+              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'175', tabLabel:'A1yr'       },
+              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'210', tabLabel:'Q3yr'       },
+              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'210', tabLabel:'SA3yr'      },
+              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'210', tabLabel:'A3yr'       },
+              { documentId:'1', pageNumber:'2', xPosition:'243', yPosition:'245', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:'2', xPosition:'360', yPosition:'245', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:'2', xPosition:'480', yPosition:'245', tabLabel:'A5yr'       },
               { documentId:'1', pageNumber:'2', xPosition:'188', yPosition:'330', tabLabel:'PayMonthly' },
               { documentId:'1', pageNumber:'2', xPosition:'295', yPosition:'330', tabLabel:'PayService' },
               { documentId:'1', pageNumber:'2', xPosition:'420', yPosition:'330', tabLabel:'PayUpfront' },
             ],
           }
         },
-        { email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
+        {
+          email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
             signHereTabs:   [{ documentId:'1', pageNumber:'2', xPosition:'330', yPosition:'700' }],
             dateSignedTabs: [{ documentId:'1', pageNumber:'2', xPosition:'550', yPosition:'700' }],
@@ -83,8 +120,15 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
     },
     status: 'sent',
   };
+
   const body = JSON.stringify(envelope);
-  const resp = await httpsReq({ hostname:'demo.docusign.net', path:`/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`, method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)} }, body);
+  const resp = await httpsReq({
+    hostname: 'demo.docusign.net',
+    path:     `/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`,
+    method:   'POST',
+    headers:  { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+  }, body);
+
   if (resp.status !== 201) throw new Error('DocuSign envelope failed: ' + JSON.stringify(resp.body));
   return resp.body.envelopeId;
 }
@@ -728,7 +772,7 @@ app.get('/admin-data', (req, res) => {
   res.json(log);
 });
 
-// ── DocuSign routes ───────────────────────────────────────────────────────────
+// ── DocuSign send route ───────────────────────────────────────────────────────
 app.post('/send-docusign', async (req, res) => {
   try {
     const pw = req.headers['x-site-password'];
@@ -754,7 +798,7 @@ app.post('/send-docusign', async (req, res) => {
     } catch(e) { console.error('Log error:',e.message); }
     const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:data.salesEmail });
     res.json({ ok:true, envelopeId, proposalNumber:data.proposalNumber });
-  } catch(err) { console.error('DocuSign error:',err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
+  } catch(err) { console.error('DocuSign send error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
 
 app.post('/resend-docusign', async (req, res) => {
@@ -763,11 +807,11 @@ app.post('/resend-docusign', async (req, res) => {
     if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error:'Unauthorized' });
     const { proposalNumber, customerName, customerEmail, repName, repEmail } = req.body;
     const filePath = path.join(__dirname, 'pdfs', `${proposalNumber}.pdf`);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — proposal may have been cleared on server restart. Please regenerate it first.' });
-    const pdfBuffer = fs.readFileSync(filePath);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — please regenerate the proposal first.' });
+    const pdfBuffer  = fs.readFileSync(filePath);
     const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail });
     res.json({ ok:true, envelopeId, proposalNumber });
-  } catch(err) { console.error('Resend error:',err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
+  } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
 
 const PORT = process.env.PORT || 3000;
