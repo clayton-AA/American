@@ -79,7 +79,7 @@ async function getDSToken() {
   return resp.body.access_token;
 }
 
-async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail }) {
+async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail, date }) {
   const token = await getDSToken();
 
   // Dynamically detect which page the execution/pricing section is on
@@ -120,9 +120,10 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
             signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'470' }],
             initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'164', yPosition:'222', scaleValue:'0.6' }],
             textTabs: [
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'365', tabLabel:'ApprovedBy',    width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'400', tabLabel:'Title',         width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'503', tabLabel:'PurchaseOrder', width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'361', tabLabel:'ApprovedBy',       width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'396', tabLabel:'Title',            width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'503', tabLabel:'PurchaseOrder',    width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'540', tabLabel:'AgreementStart',   width:'200', height:'24', locked:'true', value: date },
             ],
             dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'444' }],
             checkboxTabs: [
@@ -132,9 +133,9 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
               { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'137', tabLabel:'Q3yr'       },
               { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'137', tabLabel:'SA3yr'      },
               { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'137', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'156', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'156', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'156', tabLabel:'A5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'164', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'164', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'164', tabLabel:'A5yr'       },
               { documentId:'1', pageNumber:p, xPosition:'216', yPosition:'227', tabLabel:'PayMonthly' },
               { documentId:'1', pageNumber:p, xPosition:'328', yPosition:'227', tabLabel:'PayService' },
               { documentId:'1', pageNumber:p, xPosition:'477', yPosition:'227', tabLabel:'PayUpfront' },
@@ -831,7 +832,7 @@ app.post('/send-docusign', async (req, res) => {
       log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
-    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:data.salesEmail });
+    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:data.salesEmail, date:data.date });
     res.json({ ok:true, envelopeId, proposalNumber:data.proposalNumber });
   } catch(err) { console.error('DocuSign send error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
@@ -844,7 +845,7 @@ app.post('/resend-docusign', async (req, res) => {
     const filePath = path.join(__dirname, 'pdfs', `${proposalNumber}.pdf`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — please regenerate the proposal first.' });
     const pdfBuffer  = fs.readFileSync(filePath);
-    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail });
+    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail, date:'' });
     res.json({ ok:true, envelopeId, proposalNumber });
   } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
