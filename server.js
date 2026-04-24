@@ -145,7 +145,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'446' }],
+            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'436' }],
             dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'510' }],
             textTabs: [
               { documentId:'1', pageNumber:p, xPosition:'326', yPosition:'415', tabLabel:'RepTitle', width:'200', height:'24', locked:'false' },
