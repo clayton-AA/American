@@ -7,14 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --blue: #1B3A6B; --light-blue: #E8EEF7; --mid-blue: #B5D4F4;
-    --gray: #444; --muted: #666; --border: #e0e0e0; --bg: #f4f6f9;
-    --radius: 10px; --radius-sm: 6px;
-  }
+  :root { --blue: #1B3A6B; --light-blue: #E8EEF7; --mid-blue: #B5D4F4; --gray: #444; --muted: #666; --border: #e0e0e0; --bg: #f4f6f9; --radius: 10px; --radius-sm: 6px; }
   body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--gray); min-height: 100vh; }
-
-  /* ── Topbar ── */
   .topbar { background: var(--blue); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; }
   .topbar-left { display: flex; align-items: center; gap: 1.5rem; }
   .topbar img { height: 38px; }
@@ -22,8 +16,6 @@
   .topbar-sub { color: #AABCDD; font-size: 12px; margin-top: 1px; }
   .topbar-link { color: #AABCDD; font-size: 12px; text-decoration: none; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-sm); }
   .topbar-link:hover { background: rgba(255,255,255,0.1); color: white; }
-
-  /* ── Login overlay ── */
   .login-overlay { position: fixed; inset: 0; background: var(--blue); display: flex; align-items: center; justify-content: center; z-index: 9999; }
   .login-box { background: white; border-radius: 12px; padding: 2.5rem 2rem; width: 340px; text-align: center; }
   .login-logo { height: 48px; margin-bottom: 1.5rem; }
@@ -34,40 +26,26 @@
   .login-btn { width: 100%; padding: 11px; background: var(--blue); color: white; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
   .login-btn:hover { background: #152d54; }
   .login-error { color: #c0392b; font-size: 12px; margin-top: 8px; display: none; }
-
-  /* ── Main layout ── */
   .main { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
-
-  /* ── Stats row ── */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
   .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 1.25rem 1.5rem; }
   .stat-label { font-size: 11px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
   .stat-value { font-size: 28px; font-weight: 500; color: var(--blue); font-family: 'Playfair Display', serif; }
   .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
-
-  /* ── Rep breakdown ── */
-  .rep-list { margin-top: 10px; }
   .rep-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
   .rep-row:last-child { border-bottom: none; }
-  .rep-name { color: var(--gray); }
-  .rep-stats { display: flex; gap: 16px; }
   .rep-count { color: var(--blue); font-weight: 500; }
   .rep-value { color: var(--muted); }
-
-  /* ── Filter bar ── */
   .filter-bar { display: flex; gap: 10px; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
   .filter-bar input { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--gray); background: white; width: 240px; }
   .filter-bar input:focus { outline: none; border-color: var(--blue); }
   .filter-bar select { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--gray); background: white; cursor: pointer; }
-  .filter-bar select:focus { outline: none; border-color: var(--blue); }
   .results-count { font-size: 12px; color: var(--muted); margin-left: auto; }
-
-  /* ── Table ── */
   .table-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead th { background: var(--light-blue); color: var(--blue); font-weight: 500; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--mid-blue); white-space: nowrap; cursor: pointer; user-select: none; }
   thead th:hover { background: #dce7f5; }
-  thead th .sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+  .sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
   thead th.sorted .sort-arrow { opacity: 1; }
   tbody tr { border-bottom: 1px solid #f5f5f5; transition: background 0.1s; }
   tbody tr:last-child { border-bottom: none; }
@@ -76,32 +54,18 @@
   .prop-num { font-weight: 500; color: var(--blue); font-size: 12px; white-space: nowrap; }
   .facility-name { font-weight: 500; }
   .facility-contact { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .price-val { font-weight: 500; color: var(--gray); }
+  .price-val { font-weight: 500; }
   .date-val { font-size: 12px; color: var(--muted); white-space: nowrap; }
   .rep-badge { display: inline-block; background: var(--light-blue); color: var(--blue); font-size: 11px; padding: 3px 9px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
-  .duration-badge { display: inline-block; background: #f0f0f0; color: #555; font-size: 11px; padding: 3px 9px; border-radius: 10px; }
-
-  .dl-btn { padding: 5px 12px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue);
-    border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif;
-    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block; }
+  .ds-badge { display: inline-block; background: #e8f5e9; color: #2e7d32; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+  .dl-btn { padding: 5px 12px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap; }
   .dl-btn:hover { background: var(--mid-blue); }
-
-  /* ── Empty state ── */
   .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
   .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--gray); }
-  .empty-state p { font-size: 13px; }
-
-  /* ── Loading ── */
   .loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 13px; }
-
-  @media (max-width: 768px) {
-    .stats-row { grid-template-columns: 1fr; }
-    .main { padding: 1rem; }
-  }
 </style>
 </head>
 <body>
-
 <div class="login-overlay" id="login-overlay">
   <div class="login-box">
     <img src="logo.png" class="login-logo" alt="American Air">
@@ -112,20 +76,14 @@
     <div class="login-error" id="login-error">Incorrect password. Try again.</div>
   </div>
 </div>
-
 <div class="topbar">
   <div class="topbar-left">
     <img src="logo.png" alt="American Air">
-    <div>
-      <div class="topbar-title">Proposal Dashboard</div>
-      <div class="topbar-sub">American Air, Inc.</div>
-    </div>
+    <div><div class="topbar-title">Proposal Dashboard</div><div class="topbar-sub">American Air, Inc.</div></div>
   </div>
   <a href="/" class="topbar-link">← Back to Builder</a>
 </div>
-
 <div class="main">
-
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-label">Proposals this month</div>
@@ -137,36 +95,28 @@
       <div class="stat-value" id="stat-pipeline">—</div>
       <div class="stat-sub" id="stat-pipeline-sub">Loading...</div>
     </div>
-    <div class="stat-card" style="grid-row: span 1;">
+    <div class="stat-card">
       <div class="stat-label">Proposals by rep</div>
       <div class="rep-list" id="stat-reps"><div style="color:#aaa;font-size:12px;margin-top:8px;">Loading...</div></div>
     </div>
   </div>
-
   <div class="filter-bar">
     <input type="text" id="search" placeholder="Search facility, rep, proposal #..." oninput="filterTable()">
-    <select id="filter-rep" onchange="filterTable()">
-      <option value="">All reps</option>
-    </select>
-    <select id="filter-month" onchange="filterTable()">
-      <option value="">All time</option>
-    </select>
+    <select id="filter-rep" onchange="filterTable()"><option value="">All reps</option></select>
+    <select id="filter-month" onchange="filterTable()"><option value="">All time</option></select>
     <span class="results-count" id="results-count"></span>
   </div>
-
   <div class="table-wrap">
     <div class="loading" id="loading">Loading proposals...</div>
     <table id="proposals-table" style="display:none;">
-      <thead>
-        <tr>
-          <th onclick="sortBy('proposalNumber')">Proposal # <span class="sort-arrow">↕</span></th>
-          <th onclick="sortBy('facility')">Customer / Facility <span class="sort-arrow">↕</span></th>
-          <th onclick="sortBy('salesName')">Salesperson <span class="sort-arrow">↕</span></th>
-          <th onclick="sortBy('date')">Date <span class="sort-arrow">↕</span></th>
-          <th onclick="sortBy('price')">Annual Investment <span class="sort-arrow">↕</span></th>
-          <th></th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th onclick="sortBy('proposalNumber')">Proposal # <span class="sort-arrow">↕</span></th>
+        <th onclick="sortBy('facility')">Customer / Facility <span class="sort-arrow">↕</span></th>
+        <th onclick="sortBy('salesName')">Salesperson <span class="sort-arrow">↕</span></th>
+        <th onclick="sortBy('date')">Date <span class="sort-arrow">↕</span></th>
+        <th onclick="sortBy('price')">Annual Investment <span class="sort-arrow">↕</span></th>
+        <th></th>
+      </tr></thead>
       <tbody id="proposals-body"></tbody>
     </table>
     <div class="empty-state" id="empty-state" style="display:none;">
@@ -174,219 +124,89 @@
       <p>Proposals will appear here after they are generated in the builder.</p>
     </div>
   </div>
-
 </div>
-
 <script>
-let allProposals = [];
-let sortCol = 'generatedAt';
-let sortDir = -1;
-let adminPw = '';
-
+let allProposals = [], sortCol = 'generatedAt', sortDir = -1, adminPw = '';
 async function doLogin() {
   const pw = document.getElementById('login-pw').value;
-  const resp = await fetch('/admin-auth', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pw })
-  });
+  const resp = await fetch('/admin-auth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:pw}) });
   const data = await resp.json();
-  if (data.ok) {
-    adminPw = pw;
-    sessionStorage.setItem('adminPassword', pw);
-    document.getElementById('login-overlay').style.display = 'none';
-    loadData();
-  } else {
-    document.getElementById('login-error').style.display = 'block';
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
-  }
+  if (data.ok) { adminPw = pw; sessionStorage.setItem('adminPassword', pw); document.getElementById('login-overlay').style.display = 'none'; loadData(); }
+  else { document.getElementById('login-error').style.display = 'block'; document.getElementById('login-pw').value = ''; document.getElementById('login-pw').focus(); }
 }
-
 async function loadData() {
   try {
-    const resp = await fetch('/admin-data', {
-      headers: { 'x-admin-password': adminPw }
-    });
+    const resp = await fetch('/admin-data', { headers: {'x-admin-password': adminPw} });
     if (!resp.ok) { document.getElementById('loading').textContent = 'Access denied.'; return; }
     allProposals = await resp.json();
-    buildFilters();
-    buildStats();
-    filterTable();
+    buildFilters(); buildStats(); filterTable();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('proposals-table').style.display = allProposals.length > 0 ? 'table' : 'none';
     document.getElementById('empty-state').style.display = allProposals.length === 0 ? 'block' : 'none';
-  } catch(e) {
-    document.getElementById('loading').textContent = 'Error loading data.';
-  }
+  } catch(e) { document.getElementById('loading').textContent = 'Error loading data.'; }
 }
-
 function buildStats() {
-  const now = new Date();
-  const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const monthProps = allProposals.filter(p => (p.generatedAt || '').startsWith(thisMonth));
+  const now = new Date(), thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const monthProps = allProposals.filter(p => (p.generatedAt||'').startsWith(thisMonth));
   document.getElementById('stat-month').textContent = monthProps.length;
-  document.getElementById('stat-month-sub').textContent = `${allProposals.length} total all time`;
-
-  // Pipeline value — strip non-numeric and sum
+  document.getElementById('stat-month-sub').textContent = allProposals.length + ' total all time';
   let total = 0;
-  allProposals.forEach(p => {
-    const num = parseFloat((p.price || '').replace(/[^0-9.]/g, ''));
-    if (!isNaN(num)) total += num;
-  });
-  document.getElementById('stat-pipeline').textContent = total > 0
-    ? '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-    : '—';
-  document.getElementById('stat-pipeline-sub').textContent = `Across ${allProposals.length} proposal${allProposals.length !== 1 ? 's' : ''}`;
-
-  // By rep
+  allProposals.forEach(p => { const n = parseFloat((p.price||'').replace(/[^0-9.]/g,'')); if (!isNaN(n)) total += n; });
+  document.getElementById('stat-pipeline').textContent = total > 0 ? '$' + total.toLocaleString('en-US',{maximumFractionDigits:0}) : '—';
+  document.getElementById('stat-pipeline-sub').textContent = 'Across ' + allProposals.length + ' proposal' + (allProposals.length !== 1 ? 's' : '');
   const repMap = {};
-  allProposals.forEach(p => {
-    const rep = p.salesName || 'Unknown';
-    if (!repMap[rep]) repMap[rep] = { count: 0, value: 0 };
-    repMap[rep].count++;
-    const num = parseFloat((p.price || '').replace(/[^0-9.]/g, ''));
-    if (!isNaN(num)) repMap[rep].value += num;
-  });
+  allProposals.forEach(p => { const r = p.salesName||'Unknown'; if (!repMap[r]) repMap[r] = {count:0,value:0}; repMap[r].count++; const n = parseFloat((p.price||'').replace(/[^0-9.]/g,'')); if (!isNaN(n)) repMap[r].value += n; });
   const reps = Object.entries(repMap).sort((a,b) => b[1].count - a[1].count);
-  const repEl = document.getElementById('stat-reps');
-  if (reps.length === 0) {
-    repEl.innerHTML = '<div style="color:#aaa;font-size:12px;margin-top:8px;">No data yet</div>';
-  } else {
-    repEl.innerHTML = reps.map(([name, data]) => `
-      <div class="rep-row">
-        <span class="rep-name">${name}</span>
-        <div class="rep-stats">
-          <span class="rep-count">${data.count} proposal${data.count !== 1 ? 's' : ''}</span>
-          <span class="rep-value">${data.value > 0 ? '$' + data.value.toLocaleString() : ''}</span>
-        </div>
-      </div>`).join('');
-  }
+  document.getElementById('stat-reps').innerHTML = reps.length === 0 ? '<div style="color:#aaa;font-size:12px;margin-top:8px;">No data yet</div>' :
+    reps.map(([name,d]) => `<div class="rep-row"><span>${name}</span><div style="display:flex;gap:16px;"><span class="rep-count">${d.count} proposal${d.count!==1?'s':''}</span><span class="rep-value">${d.value>0?'$'+d.value.toLocaleString():''}</span></div></div>`).join('');
 }
-
 function buildFilters() {
-  const reps = [...new Set(allProposals.map(p => p.salesName).filter(Boolean))].sort();
+  const reps = [...new Set(allProposals.map(p=>p.salesName).filter(Boolean))].sort();
   const repSel = document.getElementById('filter-rep');
-  reps.forEach(r => {
-    const opt = document.createElement('option');
-    opt.value = r; opt.textContent = r;
-    repSel.appendChild(opt);
-  });
-
-  const months = [...new Set(allProposals.map(p => {
-    if (!p.generatedAt) return null;
-    const d = new Date(p.generatedAt);
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-  }).filter(Boolean))].sort().reverse();
-  const monthSel = document.getElementById('filter-month');
-  months.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    const d = new Date(m + '-01');
-    opt.textContent = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    monthSel.appendChild(opt);
-  });
+  reps.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; repSel.appendChild(o); });
+  const months = [...new Set(allProposals.map(p => { if (!p.generatedAt) return null; const d=new Date(p.generatedAt); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }).filter(Boolean))].sort().reverse();
+  const mSel = document.getElementById('filter-month');
+  months.forEach(m => { const o=document.createElement('option'); o.value=m; const d=new Date(m+'-01'); o.textContent=d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); mSel.appendChild(o); });
 }
-
 function filterTable() {
   const search = document.getElementById('search').value.toLowerCase();
-  const repFilter = document.getElementById('filter-rep').value;
-  const monthFilter = document.getElementById('filter-month').value;
-
+  const repF   = document.getElementById('filter-rep').value;
+  const monthF = document.getElementById('filter-month').value;
   let filtered = allProposals.filter(p => {
-    const matchSearch = !search ||
-      (p.facility || '').toLowerCase().includes(search) ||
-      (p.salesName || '').toLowerCase().includes(search) ||
-      (p.proposalNumber || '').toLowerCase().includes(search) ||
-      (p.contact || '').toLowerCase().includes(search);
-    const matchRep = !repFilter || p.salesName === repFilter;
-    const matchMonth = !monthFilter || (p.generatedAt || '').startsWith(monthFilter);
-    return matchSearch && matchRep && matchMonth;
+    const ms = !search || (p.facility||'').toLowerCase().includes(search)||(p.salesName||'').toLowerCase().includes(search)||(p.proposalNumber||'').toLowerCase().includes(search)||(p.contact||'').toLowerCase().includes(search);
+    return ms && (!repF||p.salesName===repF) && (!monthF||(p.generatedAt||'').startsWith(monthF));
   });
-
-  // Sort
-  filtered.sort((a, b) => {
-    let av = a[sortCol] || '';
-    let bv = b[sortCol] || '';
-    if (sortCol === 'price') {
-      av = parseFloat(av.replace(/[^0-9.]/g,'')) || 0;
-      bv = parseFloat(bv.replace(/[^0-9.]/g,'')) || 0;
-    }
-    if (av < bv) return -1 * sortDir;
-    if (av > bv) return 1 * sortDir;
-    return 0;
-  });
-
+  filtered.sort((a,b) => { let av=a[sortCol]||'',bv=b[sortCol]||''; if(sortCol==='price'){av=parseFloat(av.replace(/[^0-9.]/g,''))||0;bv=parseFloat(bv.replace(/[^0-9.]/g,''))||0;} return av<bv?-1*sortDir:av>bv?sortDir:0; });
   renderTable(filtered);
-  document.getElementById('results-count').textContent =
-    filtered.length === allProposals.length
-      ? `${allProposals.length} proposals`
-      : `${filtered.length} of ${allProposals.length} proposals`;
+  document.getElementById('results-count').textContent = filtered.length===allProposals.length ? allProposals.length+' proposals' : filtered.length+' of '+allProposals.length+' proposals';
 }
-
 function sortBy(col) {
-  if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
-  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+  if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
+  document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
   event.currentTarget.classList.add('sorted');
-  event.currentTarget.querySelector('.sort-arrow').textContent = sortDir === 1 ? '↑' : '↓';
+  event.currentTarget.querySelector('.sort-arrow').textContent = sortDir===1?'↑':'↓';
   filterTable();
 }
-
 function renderTable(proposals) {
   const tbody = document.getElementById('proposals-body');
-  if (proposals.length === 0) {
-    tbody.innerHTML = '';
-    document.getElementById('proposals-table').style.display = 'none';
-    document.getElementById('empty-state').style.display = 'block';
-    return;
-  }
-  document.getElementById('proposals-table').style.display = 'table';
-  document.getElementById('empty-state').style.display = 'none';
-
+  if (proposals.length===0) { tbody.innerHTML=''; document.getElementById('proposals-table').style.display='none'; document.getElementById('empty-state').style.display='block'; return; }
+  document.getElementById('proposals-table').style.display='table'; document.getElementById('empty-state').style.display='none';
   tbody.innerHTML = proposals.map(p => {
-    const genDate = p.generatedAt
-      ? new Date(p.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : p.date || '—';
-    const durLabel = p.duration ? `${p.duration} yr` : '—';
+    const d = p.generatedAt ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : p.date||'—';
+    const dsTag = p.sentViaDocuSign ? '<span class="ds-badge">DocuSign</span>' : '';
     return `<tr>
-      <td><div class="prop-num">${p.proposalNumber || '—'}</div></td>
-      <td>
-        <div class="facility-name">${p.facility || '—'}</div>
-        ${p.contact ? `<div class="facility-contact">${p.contact}</div>` : ''}
-      </td>
-      <td><span class="rep-badge">${p.salesName || '—'}</span></td>
-      <td><div class="date-val">${genDate}</div></td>
-      <td><div class="price-val">${p.price || '—'}</div></td>
-      <td><button class="dl-btn" onclick="redownload('${p.proposalNumber}')">&#8595; PDF</button></td>
+      <td><div class="prop-num">${p.proposalNumber||'—'}${dsTag}</div></td>
+      <td><div class="facility-name">${p.facility||'—'}</div>${p.contact?`<div class="facility-contact">${p.contact}</div>`:''}</td>
+      <td><span class="rep-badge">${p.salesName||'—'}</span></td>
+      <td><div class="date-val">${d}</div></td>
+      <td><div class="price-val">${p.price||'—'}</div></td>
+      <td><button class="dl-btn" onclick="redownload('${p.proposalNumber}')">↓ PDF</button></td>
     </tr>`;
   }).join('');
 }
-
-function redownload(proposalNumber) {
-  const url = `/download/${proposalNumber}?pw=${encodeURIComponent(adminPw)}`;
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${proposalNumber}_PMA.pdf`;
-  a.click();
-}
-
-// Auto-login if session has admin password
+function redownload(num) { const a=document.createElement('a'); a.href=`/download/${num}?pw=${encodeURIComponent(adminPw)}`; a.download=`${num}_PMA.pdf`; a.click(); }
 const savedPw = sessionStorage.getItem('adminPassword');
-if (savedPw) {
-  adminPw = savedPw;
-  fetch('/admin-auth', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: savedPw })
-  }).then(r => r.json()).then(d => {
-    if (d.ok) {
-      document.getElementById('login-overlay').style.display = 'none';
-      loadData();
-    } else {
-      sessionStorage.removeItem('adminPassword');
-    }
-  });
-}
+if (savedPw) { adminPw=savedPw; fetch('/admin-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:savedPw})}).then(r=>r.json()).then(d=>{if(d.ok){document.getElementById('login-overlay').style.display='none';loadData();}else{sessionStorage.removeItem('adminPassword');}}); }
 </script>
 </body>
 </html>

@@ -114,6 +114,57 @@
   .preview-summary-item strong { font-weight: 500; }
   .flag strong { font-weight: 500; }
 
+  /* ── Tabs ── */
+  .tab-bar { display: flex; border-bottom: 2px solid var(--light-blue); margin-bottom: 1.25rem; gap: 0; }
+  .tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    background: none; border: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: color 0.15s; }
+  .tab-btn:hover { color: var(--blue); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── My Proposals tab ── */
+  .my-props-filter { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .my-props-filter input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--gray); }
+  .my-props-filter input:focus { outline: none; border-color: var(--blue); }
+  .my-props-list { display: flex; flex-direction: column; gap: 8px; }
+  .my-prop-card { border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: white; }
+  .my-prop-card:hover { border-color: var(--mid-blue); background: #fafcff; }
+  .my-prop-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .my-prop-num { font-size: 11px; font-weight: 500; color: var(--blue); }
+  .my-prop-date { font-size: 10px; color: var(--muted); }
+  .my-prop-facility { font-size: 13px; font-weight: 500; color: var(--gray); margin-bottom: 2px; }
+  .my-prop-contact { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .my-prop-btns { display: flex; gap: 6px; }
+  .my-prop-dl { padding: 4px 10px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue);
+    border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .my-prop-dl:hover { background: var(--mid-blue); }
+  .my-prop-ds { padding: 4px 10px; background: white; color: var(--blue); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .my-prop-ds:hover { background: var(--light-blue); border-color: var(--mid-blue); }
+  .my-props-empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 12px; }
+  .my-props-loading { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 12px; }
+
+  /* ── DocuSign modal ── */
+  .ds-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .ds-modal-overlay.visible { display: flex; }
+  .ds-modal { background: white; border-radius: var(--radius); padding: 2rem; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .ds-modal h3 { font-size: 16px; font-weight: 500; color: var(--blue); margin-bottom: 6px; }
+  .ds-modal p { font-size: 12px; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.5; }
+  .ds-modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; margin-top: 10px; }
+  .ds-modal input { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; }
+  .ds-modal input:focus { outline: none; border-color: var(--blue); }
+  .ds-modal-btns { display: flex; gap: 8px; margin-top: 1.25rem; }
+  .ds-send-btn { flex: 1; padding: 10px; background: var(--blue); color: white; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .ds-send-btn:hover { background: #152d54; }
+  .ds-send-btn:disabled { background: #aaa; cursor: not-allowed; }
+  .ds-cancel-btn { padding: 10px 16px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .ds-cancel-btn:hover { background: var(--bg); }
+  .ds-success { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: #2e7d32; margin-top: 10px; display: none; }
+  .btn-docusign { width: 100%; padding: 10px; background: white; color: var(--blue); border: 1.5px solid var(--blue); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 8px; }
+  .btn-docusign:hover { background: var(--light-blue); }
+
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     .preview-meta { grid-template-columns: 1fr 1fr; }
@@ -156,7 +207,14 @@
 <div class="layout">
   <aside class="sidebar">
 
-    <div class="section">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-new" onclick="switchTab('new')">New Proposal</button>
+      <button class="tab-btn" id="tab-mine" onclick="switchTab('mine')">My Proposals</button>
+    </div>
+
+    <!-- ══ NEW PROPOSAL TAB ══ -->
+    <div class="tab-pane active" id="pane-new">
+<div class="section">
       <div class="section-title">Customer Info</div>
       <label>Facility / Property name</label>
       <input type="text" id="inp-facility" placeholder="e.g. Henley Enterprises — Lowell" oninput="refresh()">
@@ -219,10 +277,23 @@
       <div class="eq-grid" id="eq-grid"></div>
     </div>
 
+    </div><!-- end new proposal pane -->
+
+    <!-- ══ MY PROPOSALS TAB ══ -->
+    <div class="tab-pane" id="pane-mine">
+      <div class="my-props-filter">
+        <input type="text" id="mine-search" placeholder="Filter by facility or proposal #..." oninput="filterMyProps()">
+      </div>
+      <div class="my-props-loading" id="mine-loading" style="display:none;">Loading...</div>
+      <div class="my-props-list" id="mine-list"></div>
+      <div class="my-props-empty" id="mine-empty" style="display:none;">No proposals found for your name.<br>Make sure your name is filled in on the New Proposal tab.</div>
+    </div><!-- end my proposals pane -->
+
     <button class="btn-generate" id="gen-btn" onclick="generate()">
       <span id="btn-label">Generate &amp; Download PDF</span>
       <div class="spinner" id="spinner"></div>
     </button>
+    <button class="btn-docusign" onclick="openDSModal()">&#9993; Send for Signature via DocuSign</button>
     <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
 
   </aside>
@@ -479,6 +550,211 @@ if (sessionStorage.getItem('sitePassword')) {
 
 buildGrid();
 refresh();
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['new','mine'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('pane-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab === 'mine') loadMyProposals();
+}
+
+// ── My Proposals tab ──────────────────────────────────────────────────────
+let myProposalsCache = [];
+
+async function loadMyProposals() {
+  const repName = gv('inp-sales-name').trim().toLowerCase();
+  const loading = document.getElementById('mine-loading');
+  const list    = document.getElementById('mine-list');
+  const empty   = document.getElementById('mine-empty');
+
+  loading.style.display = 'block';
+  list.innerHTML = '';
+  empty.style.display = 'none';
+
+  try {
+    const resp = await fetch('/admin-data', {
+      headers: { 'x-admin-password': sessionStorage.getItem('sitePassword') || '' }
+    });
+    if (!resp.ok) { loading.textContent = 'Could not load proposals.'; return; }
+    const all = await resp.json();
+
+    // Filter to this rep's proposals — match on salesName if filled in, else show all
+    myProposalsCache = repName
+      ? all.filter(p => (p.salesName||'').toLowerCase() === repName)
+      : all;
+
+  } catch(e) {
+    loading.style.display = 'none';
+    list.innerHTML = '<div class="my-props-empty">Error loading proposals.</div>';
+    return;
+  }
+
+  loading.style.display = 'none';
+  renderMyProposals(myProposalsCache);
+}
+
+function filterMyProps() {
+  const q = document.getElementById('mine-search').value.toLowerCase();
+  const filtered = q
+    ? myProposalsCache.filter(p =>
+        (p.facility||'').toLowerCase().includes(q) ||
+        (p.proposalNumber||'').toLowerCase().includes(q) ||
+        (p.contact||'').toLowerCase().includes(q))
+    : myProposalsCache;
+  renderMyProposals(filtered);
+}
+
+function renderMyProposals(proposals) {
+  const list  = document.getElementById('mine-list');
+  const empty = document.getElementById('mine-empty');
+
+  if (proposals.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = proposals.map(p => {
+    const d = p.generatedAt
+      ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : p.date || '—';
+    const dsTag = p.sentViaDocuSign ? ' <span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;">DocuSign</span>' : '';
+    return `<div class="my-prop-card">
+      <div class="my-prop-top">
+        <span class="my-prop-num">${p.proposalNumber||'—'}${dsTag}</span>
+        <span class="my-prop-date">${d}</span>
+      </div>
+      <div class="my-prop-facility">${p.facility||'—'}</div>
+      ${p.contact ? `<div class="my-prop-contact">${p.contact}</div>` : ''}
+      <div class="my-prop-btns">
+        <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
+        <button class="my-prop-ds" onclick="openDSModalForProp(${JSON.stringify(p)})">&#9993; Send via DocuSign</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function redownloadProp(num) {
+  const pw = sessionStorage.getItem('sitePassword') || '';
+  const a  = document.createElement('a');
+  a.href   = `/download/${num}?pw=${encodeURIComponent(pw)}`;
+  a.download = `${num}_PMA.pdf`;
+  a.click();
+}
+
+// ── DocuSign modal ────────────────────────────────────────────────────────
+let _dsPropData = null; // null = new proposal, object = existing proposal resend
+
+function openDSModal() {
+  // Validate form first
+  const active = EQ_DATA.filter(e => state[e.id].active);
+  if (active.length === 0) { alert('Please select at least one equipment type first.'); return; }
+  const required = ['inp-facility','inp-contact','inp-date','inp-sales-name','inp-sales-phone','inp-sales-email'];
+  if (required.some(id => !gv(id))) { alert('Please fill in all required fields first.'); return; }
+  _dsPropData = null;
+  document.getElementById('ds-customer-name').value  = gv('inp-contact');
+  document.getElementById('ds-customer-email').value = '';
+  document.getElementById('ds-success').style.display = 'none';
+  document.getElementById('ds-send-btn').disabled = false;
+  document.getElementById('ds-btn-label').textContent = 'Send for Signature';
+  document.getElementById('ds-modal-overlay').classList.add('visible');
+  document.getElementById('ds-customer-email').focus();
+}
+
+function openDSModalForProp(propData) {
+  // Resend existing proposal from My Proposals tab
+  _dsPropData = propData;
+  document.getElementById('ds-customer-name').value  = propData.contact || '';
+  document.getElementById('ds-customer-email').value = propData.customerEmail || '';
+  document.getElementById('ds-success').style.display = 'none';
+  document.getElementById('ds-send-btn').disabled = false;
+  document.getElementById('ds-btn-label').textContent = 'Send for Signature';
+  document.getElementById('ds-modal-overlay').classList.add('visible');
+  document.getElementById('ds-customer-email').focus();
+}
+
+function closeDSModal() {
+  document.getElementById('ds-modal-overlay').classList.remove('visible');
+  _dsPropData = null;
+}
+
+async function sendDocuSign() {
+  const customerName  = document.getElementById('ds-customer-name').value.trim();
+  const customerEmail = document.getElementById('ds-customer-email').value.trim();
+  if (!customerName || !customerEmail) { alert('Please enter the customer name and email.'); return; }
+
+  const btn  = document.getElementById('ds-send-btn');
+  const lbl  = document.getElementById('ds-btn-label');
+  const spin = document.getElementById('ds-spinner');
+  btn.disabled = true; lbl.textContent = 'Sending...'; spin.style.display = 'block';
+
+  try {
+    let resp, result;
+
+    if (_dsPropData) {
+      // Resend existing proposal
+      resp = await fetch('/resend-docusign', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+        body:    JSON.stringify({ proposalNumber: _dsPropData.proposalNumber, customerName, customerEmail, repName: _dsPropData.salesName, repEmail: _dsPropData.salesEmail }),
+      });
+    } else {
+      // New proposal
+      const active = EQ_DATA.filter(e => state[e.id].active);
+      resp = await fetch('/send-docusign', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+        body:    JSON.stringify({
+          facility: gv('inp-facility'), address: gv('inp-address'), contact: gv('inp-contact'),
+          salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
+          date: gv('inp-date'), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
+          equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+          customerName, customerEmail,
+        }),
+      });
+    }
+
+    if (!resp.ok) {
+      let msg = 'Error sending';
+      try { const err = await resp.json(); msg = err.error || msg; } catch(e2) {}
+      throw new Error(msg);
+    }
+
+    result = await resp.json();
+    document.getElementById('ds-prop-num').textContent = result.proposalNumber || _dsPropData?.proposalNumber || '';
+    document.getElementById('ds-success').style.display = 'block';
+    lbl.textContent = '✓ Sent!';
+    spin.style.display = 'none';
+    setTimeout(() => { closeDSModal(); if (!_dsPropData) loadMyProposals(); }, 3000);
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false; lbl.textContent = 'Send for Signature'; spin.style.display = 'none';
+  }
+}
 </script>
+<!-- DocuSign modal -->
+<div class="ds-modal-overlay" id="ds-modal-overlay">
+  <div class="ds-modal">
+    <h3>&#9993; Send for Signature</h3>
+    <p>The proposal will be emailed to the customer via DocuSign. They sign first, then it routes to you for countersignature.</p>
+    <label>Customer name</label>
+    <input type="text" id="ds-customer-name" placeholder="e.g. Jennifer Smith">
+    <label>Customer email</label>
+    <input type="email" id="ds-customer-email" placeholder="customer@company.com">
+    <div class="ds-success" id="ds-success">&#10003; Sent! Proposal <strong id="ds-prop-num"></strong> is on its way.</div>
+    <div class="ds-modal-btns">
+      <button class="ds-cancel-btn" onclick="closeDSModal()">Cancel</button>
+      <button class="ds-send-btn" id="ds-send-btn" onclick="sendDocuSign()">
+        <span id="ds-btn-label">Send for Signature</span>
+        <div class="spinner" id="ds-spinner" style="display:none;"></div>
+      </button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
