@@ -117,30 +117,39 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'55',  yPosition:'630' }],
-            dateSignedTabs:  [{ documentId:'1', pageNumber:p, xPosition:'320', yPosition:'630' }],
-            initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'55',  yPosition:'510', scaleValue:'0.6' }],
+            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'527' }],
+            initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'164', yPosition:'222', scaleValue:'0.6' }],
+            textTabs: [
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'369', tabLabel:'ApprovedBy',       width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'403', tabLabel:'Title',            width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'451', tabLabel:'PrintedName',      width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'575', tabLabel:'PurchaseOrder',    width:'200', height:'24', locked:'false' },
+            ],
+            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'497' }],
             checkboxTabs: [
-              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'148', tabLabel:'Q1yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'148', tabLabel:'SA1yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'148', tabLabel:'A1yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'183', tabLabel:'Q3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'183', tabLabel:'SA3yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'183', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'218', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'218', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'218', tabLabel:'A5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'183', yPosition:'305', tabLabel:'PayMonthly' },
-              { documentId:'1', pageNumber:p, xPosition:'290', yPosition:'305', tabLabel:'PayService' },
-              { documentId:'1', pageNumber:p, xPosition:'415', yPosition:'305', tabLabel:'PayUpfront' },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'108', tabLabel:'Q1yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'108', tabLabel:'SA1yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'108', tabLabel:'A1yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'137', tabLabel:'Q3yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'137', tabLabel:'SA3yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'137', tabLabel:'A3yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'174', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'174', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'174', tabLabel:'A5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'216', yPosition:'227', tabLabel:'PayMonthly' },
+              { documentId:'1', pageNumber:p, xPosition:'328', yPosition:'227', tabLabel:'PayService' },
+              { documentId:'1', pageNumber:p, xPosition:'477', yPosition:'227', tabLabel:'PayUpfront' },
             ],
           }
         },
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'320', yPosition:'720' }],
-            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'510', yPosition:'720' }],
+            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'446' }],
+            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'510' }],
+            textTabs: [
+              { documentId:'1', pageNumber:p, xPosition:'326', yPosition:'415', tabLabel:'RepTitle', width:'200', height:'24', locked:'false' },
+            ],
           }
         }
       ]
@@ -647,9 +656,9 @@ ${pricingTableHTML}
     <div class="sig-box-addr">${facility}${address ? '<br>' + address : ''}</div>
     ${sigLine('Approved By')}
     ${sigLine('Title')}
-    <div style="margin-top:14px;"><span class="ds-anchor">__custprintname__</span><div class="sig-line"></div><div class="sig-label">Printed Name</div></div>
-    <div style="margin-top:14px;"><span class="ds-anchor">__custdate__</span><div class="sig-line"></div><div class="sig-label">Date</div></div>
-    <div style="margin-top:14px;"><span class="ds-anchor">__custsign__</span><div class="sig-line"></div><div class="sig-label">Signature</div></div>
+    ${sigLine('Printed Name')}
+    ${sigLine('Date')}
+    ${sigLine('Signature')}
     ${sigLine('Purchase Order')}
     ${sigLine('Agreement Start Date')}
   </div>
@@ -658,11 +667,7 @@ ${pricingTableHTML}
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
     ${sigLine('Title')}
-    <div style="margin-top:14px;"><span class="ds-anchor">__repsign__</span><div class="sig-line"></div><div class="sig-label">Signature</div></div>
-    <div style="margin-top:14px;"><span class="ds-anchor">__repdate__</span><div class="sig-line"></div><div class="sig-label">Date</div></div>
-    ${sigLine('Approved By')}
-    ${sigLine('Title')}
-    ${sigLine('Printed Name')}
+    ${sigLine('Signature')}
     ${sigLine('Date')}
   </div>
 </div>
