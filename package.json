@@ -1,14 +1,17 @@
 {
   "name": "aa-proposal-tool",
   "version": "2.0.0",
-  "description": "American Air LLC — Preventative Maintenance Agreement Generator",
+  "description": "American Air LLC \u2014 Preventative Maintenance Agreement Generator",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.0",
-    "puppeteer-core": "^22.0.0",
-    "@sparticuz/chromium": "^123.0.0"
+    "puppeteer-core": "21.11.0",
+    "@sparticuz/chromium": "121.0.0"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
