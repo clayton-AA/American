@@ -117,15 +117,15 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'527' }],
+            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'524' }],
             initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'164', yPosition:'222', scaleValue:'0.6' }],
             textTabs: [
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'369', tabLabel:'ApprovedBy',       width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'403', tabLabel:'Title',            width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'451', tabLabel:'PrintedName',      width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'575', tabLabel:'PurchaseOrder',    width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'365', tabLabel:'ApprovedBy',    width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'400', tabLabel:'Title',         width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'443', tabLabel:'PrintedName',   width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'575', tabLabel:'PurchaseOrder', width:'200', height:'24', locked:'false' },
             ],
-            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'497' }],
+            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'498' }],
             checkboxTabs: [
               { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'108', tabLabel:'Q1yr'       },
               { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'108', tabLabel:'SA1yr'      },
