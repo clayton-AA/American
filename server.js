@@ -132,9 +132,9 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
               { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'137', tabLabel:'Q3yr'       },
               { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'137', tabLabel:'SA3yr'      },
               { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'137', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'138', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'138', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'138', tabLabel:'A5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'156', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'156', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'156', tabLabel:'A5yr'       },
               { documentId:'1', pageNumber:p, xPosition:'216', yPosition:'227', tabLabel:'PayMonthly' },
               { documentId:'1', pageNumber:p, xPosition:'328', yPosition:'227', tabLabel:'PayService' },
               { documentId:'1', pageNumber:p, xPosition:'477', yPosition:'227', tabLabel:'PayUpfront' },
@@ -655,7 +655,6 @@ ${pricingTableHTML}
     <div class="sig-box-addr">${facility}${address ? '<br>' + address : ''}</div>
     ${sigLine('Approved By')}
     ${sigLine('Title')}
-    ${sigLine('Printed Name')}
     ${sigLine('Date')}
     ${sigLine('Signature')}
     ${sigLine('Purchase Order')}
