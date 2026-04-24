@@ -117,15 +117,14 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'524' }],
+            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'49',  yPosition:'470' }],
             initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'164', yPosition:'222', scaleValue:'0.6' }],
             textTabs: [
               { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'365', tabLabel:'ApprovedBy',    width:'200', height:'24', locked:'false' },
               { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'400', tabLabel:'Title',         width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'443', tabLabel:'PrintedName',   width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'575', tabLabel:'PurchaseOrder', width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'503', tabLabel:'PurchaseOrder', width:'200', height:'24', locked:'false' },
             ],
-            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'498' }],
+            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'444' }],
             checkboxTabs: [
               { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'108', tabLabel:'Q1yr'       },
               { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'108', tabLabel:'SA1yr'      },
@@ -133,9 +132,9 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
               { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'137', tabLabel:'Q3yr'       },
               { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'137', tabLabel:'SA3yr'      },
               { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'137', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'174', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'174', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'174', tabLabel:'A5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'138', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'138', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'138', tabLabel:'A5yr'       },
               { documentId:'1', pageNumber:p, xPosition:'216', yPosition:'227', tabLabel:'PayMonthly' },
               { documentId:'1', pageNumber:p, xPosition:'328', yPosition:'227', tabLabel:'PayService' },
               { documentId:'1', pageNumber:p, xPosition:'477', yPosition:'227', tabLabel:'PayUpfront' },
