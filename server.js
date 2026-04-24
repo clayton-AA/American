@@ -80,7 +80,34 @@ async function getDSToken() {
 }
 
 async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail }) {
-  const token    = await getDSToken();
+  const token = await getDSToken();
+
+  // Dynamically detect which page the execution/pricing section is on
+  // Structure: Cover(1) + Agreement(1-2 pages) + Execution(1 page) + Scope(1) + TC(2-3)
+  // Count total pages then subtract known tail pages (scope=1, TC=2) = execution is totalPages-3
+  let execPage = 3;
+  try {
+    const pdfStr = pdfBuffer.toString('latin1');
+    const matches = pdfStr.match(/\/Type\s*\/Page/g) || [];
+    const totalPages = matches.length;
+    console.log('PDF total pages:', totalPages);
+    // Execution page is always (totalPages - 3): last 3 pages are execution+scope+TC
+    // But execution IS one of those — it's totalPages - 2 (scope=last, TC=second last, exec=third from last)
+    // Actually: cover, agreement, [exec+pricing], scope, TC(2 pages) = 6 pages normally
+    // execPage = totalPages - 2 (scope + TC last 2, exec is 3rd from end... no)
+    // Let's just be direct: without extras = 5-6 pages total, exec is page 3
+    // With extras (long exclusions) = could push to page 4
+    // Best heuristic: exec page = totalPages - 3 (there are always 3 pages after exec: scope + 2 TC pages)
+    if (totalPages > 0) {
+      execPage = Math.max(2, totalPages - 3);
+    }
+    console.log('Execution page:', execPage);
+  } catch(e) {
+    console.log('Page count error:', e.message);
+    execPage = 3;
+  }
+
+  const p = '3'; // Execution always on page 3
   const envelope = {
     emailSubject: `Preventative Maintenance Agreement — Please Sign`,
     emailBlurb:   `Please review and sign your Preventative Maintenance Agreement with American Air, Inc. Once signed it will be routed to your account manager for countersignature.`,
@@ -90,54 +117,30 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs: [{
-              documentId: '1', anchorString: '__custsign__',
-              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
-              anchorIgnoreIfNotPresent: 'false',
-            }],
-            dateSignedTabs: [{
-              documentId: '1', anchorString: '__custdate__',
-              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
-              anchorIgnoreIfNotPresent: 'false',
-            }],
-            initialHereTabs: [{
-              documentId: '1', anchorString: '__custinit__',
-              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
-              scaleValue: '0.6', anchorIgnoreIfNotPresent: 'false',
-            }],
+            signHereTabs:    [{ documentId:'1', pageNumber:p, xPosition:'55',  yPosition:'630' }],
+            dateSignedTabs:  [{ documentId:'1', pageNumber:p, xPosition:'320', yPosition:'630' }],
+            initialHereTabs: [{ documentId:'1', pageNumber:p, xPosition:'55',  yPosition:'510', scaleValue:'0.6' }],
             checkboxTabs: [
-              { documentId:'1', anchorString:'__q1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q1yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__sa1y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA1yr',       anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__a1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A1yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__q3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q3yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__sa3y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA3yr',       anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__a3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A3yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__q5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q5yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__sa5y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA5yr',       anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__a5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A5yr',        anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__paymonthly__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayMonthly',  anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__payservice__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayService',  anchorIgnoreIfNotPresent:'true' },
-              { documentId:'1', anchorString:'__payupfront__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayUpfront',  anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'148', tabLabel:'Q1yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'148', tabLabel:'SA1yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'148', tabLabel:'A1yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'183', tabLabel:'Q3yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'183', tabLabel:'SA3yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'183', tabLabel:'A3yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'238', yPosition:'218', tabLabel:'Q5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'355', yPosition:'218', tabLabel:'SA5yr'      },
+              { documentId:'1', pageNumber:p, xPosition:'472', yPosition:'218', tabLabel:'A5yr'       },
+              { documentId:'1', pageNumber:p, xPosition:'183', yPosition:'305', tabLabel:'PayMonthly' },
+              { documentId:'1', pageNumber:p, xPosition:'290', yPosition:'305', tabLabel:'PayService' },
+              { documentId:'1', pageNumber:p, xPosition:'415', yPosition:'305', tabLabel:'PayUpfront' },
             ],
           }
         },
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs: [{
-              documentId: '1',
-              anchorString: '__repsign__',
-              anchorUnits: 'pixels',
-              anchorXOffset: '0',
-              anchorYOffset: '-5',
-            }],
-            dateSignedTabs: [{
-              documentId: '1',
-              anchorString: '__repdate__',
-              anchorUnits: 'pixels',
-              anchorXOffset: '0',
-              anchorYOffset: '-5',
-            }],
+            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'320', yPosition:'720' }],
+            dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'510', yPosition:'720' }],
           }
         }
       ]
@@ -632,7 +635,6 @@ ${benefitsHTML}
   <tfoot><tr><td><strong>Total Units Covered</strong></td><td><strong>${totalUnits}</strong></td><td></td></tr></tfoot>
 </table>
 
-${addExclHTML}
 
 <div class="page-break"></div>
 <div style="page-break-inside: avoid;">
@@ -680,6 +682,8 @@ ${pricingTableHTML}
 </div>
 
 ${eqScopeHTML}
+
+${addExclHTML}
 
 <p style="font-size:9.5px;color:#888;font-style:italic;padding:8px 0;border-top:1px solid #ddd;margin:0;">
   This scope of work applies to all units of each type listed above. Additional findings or repairs outside this scope will be presented in writing for customer approval prior to any work being performed.
