@@ -90,30 +90,51 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: customerEmail, name: customerName, recipientId: '1', routingOrder: '1',
           tabs: {
-            signHereTabs:    [{ documentId:'1', pageNumber:'3', xPosition:'60',  yPosition:'620' }],
-            dateSignedTabs:  [{ documentId:'1', pageNumber:'3', xPosition:'330', yPosition:'620' }],
-            initialHereTabs: [{ documentId:'1', pageNumber:'3', xPosition:'60',  yPosition:'540', scaleValue:'0.6' }],
+            signHereTabs: [{
+              documentId: '1', anchorString: '__custsign__',
+              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
+            }],
+            dateSignedTabs: [{
+              documentId: '1', anchorString: '__custdate__',
+              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
+            }],
+            initialHereTabs: [{
+              documentId: '1', anchorString: '__custinit__',
+              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5', scaleValue: '0.6',
+            }],
             checkboxTabs: [
-              { documentId:'1', pageNumber:'3', xPosition:'243', yPosition:'175', tabLabel:'Q1yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'360', yPosition:'175', tabLabel:'SA1yr'      },
-              { documentId:'1', pageNumber:'3', xPosition:'480', yPosition:'175', tabLabel:'A1yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'243', yPosition:'210', tabLabel:'Q3yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'360', yPosition:'210', tabLabel:'SA3yr'      },
-              { documentId:'1', pageNumber:'3', xPosition:'480', yPosition:'210', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'243', yPosition:'245', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'360', yPosition:'245', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:'3', xPosition:'480', yPosition:'245', tabLabel:'A5yr'       },
-              { documentId:'1', pageNumber:'3', xPosition:'188', yPosition:'330', tabLabel:'PayMonthly' },
-              { documentId:'1', pageNumber:'3', xPosition:'295', yPosition:'330', tabLabel:'PayService' },
-              { documentId:'1', pageNumber:'3', xPosition:'420', yPosition:'330', tabLabel:'PayUpfront' },
+              { documentId:'1', anchorString:'__q1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q1yr'       },
+              { documentId:'1', anchorString:'__sa1y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA1yr'      },
+              { documentId:'1', anchorString:'__a1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A1yr'       },
+              { documentId:'1', anchorString:'__q3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q3yr'       },
+              { documentId:'1', anchorString:'__sa3y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA3yr'      },
+              { documentId:'1', anchorString:'__a3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A3yr'       },
+              { documentId:'1', anchorString:'__q5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q5yr'       },
+              { documentId:'1', anchorString:'__sa5y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA5yr'      },
+              { documentId:'1', anchorString:'__a5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A5yr'       },
+              { documentId:'1', anchorString:'__paymonthly__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayMonthly' },
+              { documentId:'1', anchorString:'__payservice__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayService' },
+              { documentId:'1', anchorString:'__payupfront__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayUpfront' },
             ],
           }
         },
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:'3', xPosition:'320', yPosition:'700' }],
-            dateSignedTabs: [{ documentId:'1', pageNumber:'3', xPosition:'510', yPosition:'700' }],
+            signHereTabs: [{
+              documentId: '1',
+              anchorString: '__repsign__',
+              anchorUnits: 'pixels',
+              anchorXOffset: '0',
+              anchorYOffset: '-5',
+            }],
+            dateSignedTabs: [{
+              documentId: '1',
+              anchorString: '__repdate__',
+              anchorUnits: 'pixels',
+              anchorXOffset: '0',
+              anchorYOffset: '-5',
+            }],
           }
         }
       ]
@@ -250,21 +271,21 @@ function buildHTML(data) {
     <tbody>
       <tr>
         <td class="term-label">1 Year</td>
-        <td class="price-cell">${fmtP(pt.y1q)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y1s)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y1a)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y1q)}<span class="ds-anchor" id="anc-q1y">__q1y__</span></td>
+        <td class="price-cell">${fmtP(pt.y1s)}<span class="ds-anchor" id="anc-sa1y">__sa1y__</span></td>
+        <td class="price-cell">${fmtP(pt.y1a)}<span class="ds-anchor" id="anc-a1y">__a1y__</span></td>
       </tr>
       <tr class="disc-row">
         <td class="term-label">3 Year <span class="disc-badge">3% off</span></td>
-        <td class="price-cell">${fmtP(pt.y3q)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y3s)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y3a)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y3q)}<span class="ds-anchor" id="anc-q3y">__q3y__</span></td>
+        <td class="price-cell">${fmtP(pt.y3s)}<span class="ds-anchor" id="anc-sa3y">__sa3y__</span></td>
+        <td class="price-cell">${fmtP(pt.y3a)}<span class="ds-anchor" id="anc-a3y">__a3y__</span></td>
       </tr>
       <tr class="disc-row">
         <td class="term-label">5 Year <span class="disc-badge">5% off</span></td>
-        <td class="price-cell">${fmtP(pt.y5q)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y5s)}<div class="sel-box"></div></td>
-        <td class="price-cell">${fmtP(pt.y5a)}<div class="sel-box"></div></td>
+        <td class="price-cell">${fmtP(pt.y5q)}<span class="ds-anchor" id="anc-q5y">__q5y__</span></td>
+        <td class="price-cell">${fmtP(pt.y5s)}<span class="ds-anchor" id="anc-sa5y">__sa5y__</span></td>
+        <td class="price-cell">${fmtP(pt.y5a)}<span class="ds-anchor" id="anc-a5y">__a5y__</span></td>
       </tr>
     </tbody>
   </table>
@@ -276,12 +297,12 @@ function buildHTML(data) {
     </div>
     <div class="payment-terms-row">
       <span class="payment-label">Preferred payment terms:</span>
-      <span class="payment-opt ${pt.paymentTerm === 'monthly' ? 'selected' : ''}">&#9633; Monthly</span>
-      <span class="payment-opt ${pt.paymentTerm === 'service' ? 'selected' : ''}">&#9633; At time of service</span>
-      <span class="payment-opt ${pt.paymentTerm === 'upfront' ? 'selected' : ''}">&#9633; Upfront / annual</span>
+      <span class="payment-opt ${pt.paymentTerm === 'monthly' ? 'selected' : ''}"><span class="ds-anchor">__paymonthly__</span>&#9633; Monthly</span>
+      <span class="payment-opt ${pt.paymentTerm === 'service' ? 'selected' : ''}"><span class="ds-anchor">__payservice__</span>&#9633; At time of service</span>
+      <span class="payment-opt ${pt.paymentTerm === 'upfront' ? 'selected' : ''}"><span class="ds-anchor">__payupfront__</span>&#9633; Upfront / annual</span>
     </div>
     <div class="initial-row">
-      <span>Customer initial: ____________</span>
+      <span><span class="ds-anchor">__custinit__</span>Customer initial: ____________</span>
       <span style="margin-left:40px;">Date: ____________</span>
     </div>
   </div>
@@ -471,6 +492,9 @@ function buildHTML(data) {
   .pricing-sel-table { page-break-inside: avoid; }
   .pricing-footer { page-break-inside: avoid; }
 
+  /* ── DocuSign anchor text — invisible in PDF but found by DocuSign ── */
+  .ds-anchor { font-size: 1px; color: white; opacity: 0; position: absolute; user-select: none; }
+
   /* ── Pricing selection table ── */
   .pricing-sel-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
   .pricing-sel-table thead th { background: #1B3A6B; color: white; padding: 8px 10px; text-align: center;
@@ -618,8 +642,9 @@ ${pricingTableHTML}
     <div class="sig-box-addr">${facility}${address ? '<br>' + address : ''}</div>
     ${sigLine('Approved By')}
     ${sigLine('Title')}
-    ${sigLine('Printed Name')}
-    ${sigLine('Date')}
+    <div style="margin-top:14px;"><span class="ds-anchor">__custprintname__</span><div class="sig-line"></div><div class="sig-label">Printed Name</div></div>
+    <div style="margin-top:14px;"><span class="ds-anchor">__custdate__</span><div class="sig-line"></div><div class="sig-label">Date</div></div>
+    <div style="margin-top:14px;"><span class="ds-anchor">__custsign__</span><div class="sig-line"></div><div class="sig-label">Signature</div></div>
     ${sigLine('Purchase Order')}
     ${sigLine('Agreement Start Date')}
   </div>
@@ -628,8 +653,8 @@ ${pricingTableHTML}
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
     ${sigLine('Title')}
-    ${sigLine('Signature')}
-    ${sigLine('Date')}
+    <div style="margin-top:14px;"><span class="ds-anchor">__repsign__</span><div class="sig-line"></div><div class="sig-label">Signature</div></div>
+    <div style="margin-top:14px;"><span class="ds-anchor">__repdate__</span><div class="sig-line"></div><div class="sig-label">Date</div></div>
     ${sigLine('Approved By')}
     ${sigLine('Title')}
     ${sigLine('Printed Name')}
