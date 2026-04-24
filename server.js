@@ -193,7 +193,7 @@ app.use('/generate', (req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const LOGO_B64 = require('fs').readFileSync(require('path').join(__dirname, 'public/logo_b64.txt'), 'utf8').trim();
+const LOGO_B64 = require('fs').readFileSync(require('path').join(__dirname, 'logo_b64.txt'), 'utf8').trim();
 
 // ── Proposal number tracker ───────────────────────────────────────────────
 // Use persistent disk at /data if available, fallback to app directory
