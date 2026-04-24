@@ -493,7 +493,7 @@ function buildHTML(data) {
   .pricing-footer { page-break-inside: avoid; }
 
   /* ── DocuSign anchor text — invisible in PDF but found by DocuSign ── */
-  .ds-anchor { font-size: 1px; color: white; opacity: 0; position: absolute; user-select: none; }
+  .ds-anchor { font-size: 7px; color: #ffffff; background: #ffffff; line-height: 0; display: inline-block; overflow: hidden; height: 1px; user-select: none; }
 
   /* ── Pricing selection table ── */
   .pricing-sel-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
