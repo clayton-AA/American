@@ -93,28 +93,31 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
             signHereTabs: [{
               documentId: '1', anchorString: '__custsign__',
               anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
+              anchorIgnoreIfNotPresent: 'false',
             }],
             dateSignedTabs: [{
               documentId: '1', anchorString: '__custdate__',
               anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
+              anchorIgnoreIfNotPresent: 'false',
             }],
             initialHereTabs: [{
               documentId: '1', anchorString: '__custinit__',
-              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5', scaleValue: '0.6',
+              anchorUnits: 'pixels', anchorXOffset: '0', anchorYOffset: '-5',
+              scaleValue: '0.6', anchorIgnoreIfNotPresent: 'false',
             }],
             checkboxTabs: [
-              { documentId:'1', anchorString:'__q1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q1yr'       },
-              { documentId:'1', anchorString:'__sa1y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA1yr'      },
-              { documentId:'1', anchorString:'__a1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A1yr'       },
-              { documentId:'1', anchorString:'__q3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q3yr'       },
-              { documentId:'1', anchorString:'__sa3y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA3yr'      },
-              { documentId:'1', anchorString:'__a3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A3yr'       },
-              { documentId:'1', anchorString:'__q5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q5yr'       },
-              { documentId:'1', anchorString:'__sa5y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA5yr'      },
-              { documentId:'1', anchorString:'__a5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A5yr'       },
-              { documentId:'1', anchorString:'__paymonthly__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayMonthly' },
-              { documentId:'1', anchorString:'__payservice__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayService' },
-              { documentId:'1', anchorString:'__payupfront__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayUpfront' },
+              { documentId:'1', anchorString:'__q1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q1yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__sa1y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA1yr',       anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__a1y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A1yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__q3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q3yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__sa3y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA3yr',       anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__a3y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A3yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__q5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'Q5yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__sa5y__',       anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'SA5yr',       anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__a5y__',        anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'A5yr',        anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__paymonthly__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayMonthly',  anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__payservice__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayService',  anchorIgnoreIfNotPresent:'true' },
+              { documentId:'1', anchorString:'__payupfront__', anchorUnits:'pixels', anchorXOffset:'2', anchorYOffset:'-12', tabLabel:'PayUpfront',  anchorIgnoreIfNotPresent:'true' },
             ],
           }
         },
@@ -493,7 +496,7 @@ function buildHTML(data) {
   .pricing-footer { page-break-inside: avoid; }
 
   /* ── DocuSign anchor text — invisible in PDF but found by DocuSign ── */
-  .ds-anchor { font-size: 7px; color: #ffffff; background: #ffffff; line-height: 0; display: inline-block; overflow: hidden; height: 1px; user-select: none; }
+  .ds-anchor { font-size: 8pt; color: #f8f8f8; line-height: 1; }
 
   /* ── Pricing selection table ── */
   .pricing-sel-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
@@ -837,6 +840,28 @@ app.post('/resend-docusign', async (req, res) => {
     const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail });
     res.json({ ok:true, envelopeId, proposalNumber });
   } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
+});
+
+// Debug route — check if anchor text is in PDF
+app.post('/debug-pdf-text', async (req, res) => {
+  try {
+    const pw = req.headers['x-site-password'];
+    if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error:'Unauthorized' });
+    const data = req.body;
+    data.proposalNumber = 'DEBUG-001';
+    const html = buildHTML(data);
+    const browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil:'networkidle0' });
+    const pdf = await page.pdf({ format:'Letter', printBackground:true, margin:{top:'0.5in',right:'0.5in',bottom:'0.5in',left:'0.5in'} });
+    await browser.close();
+    // Check if anchor strings appear in raw PDF bytes
+    const pdfStr = pdf.toString('utf8');
+    const anchors = ['__custsign__','__custdate__','__custinit__','__repsign__','__repdate__','__q1y__','__sa1y__','__a1y__'];
+    const found = anchors.filter(a => pdfStr.includes(a));
+    const missing = anchors.filter(a => !pdfStr.includes(a));
+    res.json({ found, missing, pdfSize: pdf.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 const PORT = process.env.PORT || 3000;
