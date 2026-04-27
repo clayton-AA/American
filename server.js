@@ -146,10 +146,10 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'436' }],
+            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'446' }],
             dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'495' }],
             textTabs: [
-              { documentId:'1', pageNumber:p, xPosition:'326', yPosition:'405', tabLabel:'RepTitle', width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'326', yPosition:'415', tabLabel:'RepTitle', width:'200', height:'24', locked:'false' },
             ],
           }
         }
