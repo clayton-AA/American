@@ -807,6 +807,17 @@ app.post('/admin-auth', (req, res) => {
   res.json({ ok: password === ADMIN_PASSWORD });
 });
 
+
+// ── My Proposals (rep-facing, site password protected) ───────────────────────
+app.get('/my-proposals', (req, res) => {
+  const pw = req.headers['x-site-password'];
+  if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error: 'Unauthorized' });
+  const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+  let log = [];
+  try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+  res.json(log);
+});
+
 app.get('/admin-data', (req, res) => {
   const pw = req.headers['x-admin-password'];
   if (pw !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });

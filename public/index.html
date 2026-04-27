@@ -574,8 +574,8 @@ async function loadMyProposals() {
   empty.style.display = 'none';
 
   try {
-    const resp = await fetch('/admin-data', {
-      headers: { 'x-admin-password': sessionStorage.getItem('sitePassword') || '' }
+    const resp = await fetch('/my-proposals', {
+      headers: { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }
     });
     if (!resp.ok) { loading.textContent = 'Could not load proposals.'; return; }
     const all = await resp.json();
