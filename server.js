@@ -401,6 +401,12 @@ function buildHTML(data) {
       <div class="sig-label">${label}</div>
     </div>`;
 
+  const sigLineSpaced = (label, extra) => `
+    <div class="sig-line-wrap" style="margin-top:${extra}px;">
+      <div class="sig-line"></div>
+      <div class="sig-label">${label}</div>
+    </div>`;
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -670,8 +676,8 @@ ${pricingTableHTML}
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
     ${sigLine('Title')}
-    ${sigLine('Signature')}
-    ${sigLine('Date')}
+    ${sigLineSpaced('Signature', 15)}
+    ${sigLineSpaced('Date', 15)}
   </div>
 </div>
 </div><!-- end keep-together -->
