@@ -146,7 +146,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
         {
           email: repEmail, name: repName, recipientId: '2', routingOrder: '2',
           tabs: {
-            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'446' }],
+            signHereTabs:   [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'456' }],
             dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'327', yPosition:'495' }],
             textTabs: [
               { documentId:'1', pageNumber:p, xPosition:'326', yPosition:'415', tabLabel:'RepTitle', width:'200', height:'24', locked:'false' },
@@ -665,7 +665,7 @@ ${pricingTableHTML}
     ${sigLine('Purchase Order (Optional)')}
     ${sigLine('Agreement Start Date')}
   </div>
-  <div class="sig-box" style="margin-top:10px;">
+  <div class="sig-box" style="margin-top:20px;">
     <div class="sig-box-title">American Air LLC</div>
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
