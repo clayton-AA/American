@@ -159,7 +159,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
 
   const body = JSON.stringify(envelope);
   const resp = await httpsReq({
-    hostname: 'na3.docusign.net',
+    hostname: 'na4.docusign.net',
     path:     `/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`,
     method:   'POST',
     headers:  { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
