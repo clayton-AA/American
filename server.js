@@ -674,7 +674,7 @@ ${pricingTableHTML}
     <div class="sig-box-title">American Air LLC</div>
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
-    ${sigLineSpaced('Signature', 30)}
+    ${sigLineSpaced('Signature', 22)}
     ${sigLineSpaced('Date', 15)}
   </div>
 </div>
