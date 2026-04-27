@@ -122,7 +122,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
             textTabs: [
               { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'361', tabLabel:'ApprovedBy',       width:'200', height:'24', locked:'false' },
               { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'396', tabLabel:'Title',            width:'200', height:'24', locked:'false' },
-              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'503', tabLabel:'PurchaseOrder',    width:'200', height:'24', locked:'false' },
+              { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'503', tabLabel:'PurchaseOrder',    width:'200', height:'24', locked:'false', required:'false' },
               { documentId:'1', pageNumber:p, xPosition:'49', yPosition:'540', tabLabel:'AgreementStart',   width:'200', height:'24', locked:'true', value: date },
               { documentId:'1', pageNumber:p, xPosition:'230', yPosition:'316', tabLabel:'InitialDate',     width:'130', height:'18', locked:'true', value: date },
             ],
@@ -662,10 +662,10 @@ ${pricingTableHTML}
     ${sigLine('Title')}
     ${sigLine('Date')}
     ${sigLine('Signature')}
-    ${sigLine('Purchase Order')}
+    ${sigLine('Purchase Order (Optional)')}
     ${sigLine('Agreement Start Date')}
   </div>
-  <div class="sig-box">
+  <div class="sig-box" style="margin-top:10px;">
     <div class="sig-box-title">American Air LLC</div>
     <div class="sig-box-addr">80 Brick Kiln Road<br>Chelmsford, MA 01824<br>Ph: 978-640-8880</div>
     ${sigLine('Submitted By: ' + salesName)}
