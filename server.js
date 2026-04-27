@@ -42,7 +42,7 @@ async function getDSToken() {
   const payload = {
     iss:   DS_INT_KEY,
     sub:   DS_USER_ID,
-    aud:   'account-d.docusign.com',
+    aud:   'account.docusign.com',
     iat:   now,
     exp:   now + 3600,
     scope: 'signature impersonation',
@@ -63,7 +63,7 @@ async function getDSToken() {
 
   const body = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`;
   const opts = {
-    hostname: 'account-d.docusign.com',
+    hostname: 'account.docusign.com',
     path:     '/oauth/token',
     method:   'POST',
     headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
@@ -159,7 +159,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
 
   const body = JSON.stringify(envelope);
   const resp = await httpsReq({
-    hostname: 'demo.docusign.net',
+    hostname: 'na3.docusign.net',
     path:     `/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`,
     method:   'POST',
     headers:  { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
