@@ -862,7 +862,7 @@ app.post('/resend-docusign', async (req, res) => {
     const pw = req.headers['x-site-password'];
     if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error:'Unauthorized' });
     const { proposalNumber, customerName, customerEmail, repName, repEmail } = req.body;
-    const filePath = path.join(__dirname, 'pdfs', `${proposalNumber}.pdf`);
+    const filePath = path.join(DATA_DIR, 'pdfs', `${proposalNumber}.pdf`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — please regenerate the proposal first.' });
     const pdfBuffer  = fs.readFileSync(filePath);
     const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail, date:'' });
