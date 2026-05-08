@@ -793,7 +793,7 @@ app.get('/download/:proposalNumber', (req, res) => {
   const ADMIN_PW = process.env.ADMIN_PASSWORD || 'aaadmin';
   if (pw !== SITE_PW && pw !== ADMIN_PW) return res.status(401).json({ error: 'Unauthorized' });
   const num = req.params.proposalNumber.replace(/[^a-zA-Z0-9\-]/g, '');
-  const filePath = path.join(__dirname, 'pdfs', `${num}.pdf`);
+  const filePath = path.join(DATA_DIR, 'pdfs', `${num}.pdf`);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'PDF not found' });
   res.setHeader('Content-Disposition', `attachment; filename="${num}_PMA.pdf"`);
   res.setHeader('Content-Type', 'application/pdf');

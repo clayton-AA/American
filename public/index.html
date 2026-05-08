@@ -618,7 +618,10 @@ function renderMyProposals(proposals) {
   }
   empty.style.display = 'none';
 
-  list.innerHTML = proposals.map(p => {
+  // Store proposals in a map for safe lookup by index
+  window._myPropsMap = {};
+  list.innerHTML = proposals.map((p, i) => {
+    window._myPropsMap[i] = p;
     const d = p.generatedAt
       ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
       : p.date || '—';
@@ -632,7 +635,7 @@ function renderMyProposals(proposals) {
       ${p.contact ? `<div class="my-prop-contact">${p.contact}</div>` : ''}
       <div class="my-prop-btns">
         <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
-        <button class="my-prop-ds" onclick="openDSModalForProp(${JSON.stringify(p)})">&#9993; Send via DocuSign</button>
+        <button class="my-prop-ds" onclick="openDSModalForProp(window._myPropsMap[${i}])">&#9993; Send via DocuSign</button>
       </div>
     </div>`;
   }).join('');
