@@ -178,6 +178,20 @@
   .dash-del-btn { padding: 4px 10px; background: white; color: #999; border: 1px solid #ddd; border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-left: auto; }
   .dash-del-btn:hover { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
 
+
+  /* ── Renewals ── */
+  .renewal-card { border-radius: 8px; padding: 12px; margin-bottom: 8px; border: 1px solid; }
+  .renewal-card.red  { background: #fff5f5; border-color: #ef9a9a; }
+  .renewal-card.yellow { background: #fffde7; border-color: #ffe082; }
+  .renewal-card.green  { background: #f1f8f1; border-color: #a5d6a7; }
+  .renewal-days { font-size: 22px; font-weight: 700; }
+  .renewal-days.red    { color: #c62828; }
+  .renewal-days.yellow { color: #e65100; }
+  .renewal-days.green  { color: #2e7d32; }
+  .renewal-start-btn { padding: 7px 14px; background: #1B3A6B; color: white; border: none;
+    border-radius: 6px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; margin-top: 8px; }
+  .renewal-start-btn:hover { background: #152d54; }
+
   /* ── DocuSign modal ── */
   .ds-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
   .ds-modal-overlay.visible { display: flex; }
@@ -409,6 +423,8 @@
           <div class="dash-stat-sub" id="ds-total-sub"></div>
         </div>
       </div>
+      <div class="dash-section-title" id="renewals-section-title" style="display:none">Upcoming Renewals</div>
+      <div id="renewals-list" style="margin-bottom:16px;"></div>
       <div class="dash-section-title">All Proposals</div>
       <div class="dash-list" id="dash-list"></div>
     </div><!-- end dashboard pane -->
@@ -998,4 +1014,76 @@ async function deleteProp(i) {
     } else { alert('Could not delete proposal.'); }
   } catch(e) { alert('Error deleting proposal.'); }
 }
+</script>
+
+<script>
+// ── Renewals ──────────────────────────────────────────────────────────────
+function renderRenewals(proposals) {
+  const today = new Date();
+  const won = proposals.filter(p => p.status === 'won' && p.expiresAt);
+
+  const upcoming = won
+    .map(p => {
+      const exp = new Date(p.expiresAt);
+      const daysLeft = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+      return { ...p, daysLeft, exp };
+    })
+    .filter(p => p.daysLeft <= 90)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  const section = document.getElementById('renewals-section-title');
+  const list    = document.getElementById('renewals-list');
+
+  if (upcoming.length === 0) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  list.innerHTML = upcoming.map(p => {
+    const urgency = p.daysLeft <= 30 ? 'red' : p.daysLeft <= 60 ? 'yellow' : 'green';
+    const expStr  = new Date(p.expiresAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const label   = p.daysLeft <= 0 ? 'EXPIRED' : p.daysLeft === 1 ? '1 day left' : `${p.daysLeft} days left`;
+    const contractStr = [p.contractLength ? p.contractLength+'yr' : '', p.frequency].filter(Boolean).join(' · ');
+    return `<div class="renewal-card ${urgency}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#444;">${p.facility||'—'}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${p.salesName||''} ${contractStr ? '· '+contractStr : ''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="renewal-days ${urgency}">${label}</div>
+          <div style="font-size:10px;color:#888;">Expires ${expStr}</div>
+        </div>
+      </div>
+      ${p.annualValue ? `<div style="font-size:12px;font-weight:500;color:#1B3A6B;margin-bottom:6px;">$${parseFloat(p.annualValue).toLocaleString()}/yr</div>` : ''}
+      <button class="renewal-start-btn" onclick="startRenewal('${p.proposalNumber}')">↻ Start Renewal</button>
+    </div>`;
+  }).join('');
+}
+
+function startRenewal(proposalNumber) {
+  const p = dashCache.find(c => c.proposalNumber === proposalNumber);
+  if (!p) return;
+  // Switch to New Proposal tab and pre-fill customer info
+  switchTab('new');
+  setTimeout(() => {
+    if (p.facility) { const el = document.getElementById('inp-facility'); if(el) el.value = p.facility; }
+    if (p.contact)  { const el = document.getElementById('inp-contact');  if(el) el.value = p.contact; }
+    if (p.address)  { const el = document.getElementById('inp-address');  if(el) el.value = p.address || ''; }
+    // Set today's date
+    const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const dateEl = document.getElementById('inp-date'); if(dateEl) dateEl.value = today;
+    window.scrollTo(0,0);
+  }, 100);
+}
+
+// Hook into renderDashboard to also render renewals
+const _origRenderDashboard = renderDashboard;
+renderDashboard = function(proposals) {
+  _origRenderDashboard(proposals);
+  renderRenewals(dashCache); // Always use full cache for renewals
+};
 </script>

@@ -862,7 +862,53 @@ app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5m
 
       const match = log.find(p => p.envelopeId === envelopeId);
       if (match) {
-        log = log.map(p => p.envelopeId === envelopeId ? { ...p, status: 'won', signedAt: new Date().toISOString() } : p);
+        // Parse which pricing checkbox was selected
+        let contractLength = null;
+        let frequency = null;
+        try {
+          const recipients = envelope.recipients || {};
+          const signers = recipients.signers || [];
+          // Customer is signer 1
+          const customer = signers.find(s => s.routingOrder === '1' || s.routingOrder === 1);
+          if (customer && customer.tabs && customer.tabs.checkboxTabs) {
+            const checked = customer.tabs.checkboxTabs.filter(t => t.selected === 'true' || t.selected === true);
+            console.log('Checked tabs:', checked.map(t => t.tabLabel));
+            // Determine contract length and frequency from tab label
+            // Labels: Q1yr, SA1yr, A1yr, Q3yr, SA3yr, A3yr, Q5yr, SA5yr, A5yr
+            const freqMap = { Q: 'Quarterly', SA: 'Semi-Annual', A: 'Annual' };
+            const lenMap  = { '1yr': 1, '3yr': 3, '5yr': 5 };
+            for (const tab of checked) {
+              const label = tab.tabLabel || '';
+              for (const [key, len] of Object.entries(lenMap)) {
+                if (label.endsWith(key)) {
+                  contractLength = len;
+                  const freqKey = label.replace(key, '');
+                  frequency = freqMap[freqKey] || freqKey;
+                }
+              }
+            }
+          }
+        } catch(e) { console.log('Tab parse error:', e.message); }
+
+        // Calculate expiration date
+        let expiresAt = null;
+        const signedAt = new Date().toISOString();
+        if (contractLength) {
+          const exp = new Date();
+          exp.setFullYear(exp.getFullYear() + contractLength);
+          expiresAt = exp.toISOString();
+        }
+
+        console.log(`Contract: ${contractLength}yr ${frequency}, expires: ${expiresAt}`);
+
+        log = log.map(p => p.envelopeId === envelopeId ? {
+          ...p,
+          status: 'won',
+          signedAt,
+          contractLength,
+          frequency,
+          expiresAt,
+        } : p);
         fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
         console.log(`Marked ${match.proposalNumber} as WON via DocuSign webhook`);
       } else {
