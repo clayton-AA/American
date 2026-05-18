@@ -22,7 +22,7 @@
   .layout { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 64px); }
 
   .sidebar { background: white; border-right: 1px solid var(--border); padding: 1.5rem; overflow-y: auto; }
-  .main { padding: 1.5rem; overflow-y: auto; }
+  .main { padding: 1.5rem; overflow-y: auto; min-width: 0; }
 
   .section { margin-bottom: 1.75rem; }
   .section-title { font-size: 11px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase;
@@ -115,7 +115,8 @@
   .flag strong { font-weight: 500; }
 
   /* ── Tabs ── */
-  .tab-bar { display: flex; border-bottom: 2px solid var(--light-blue); margin-bottom: 1.25rem; gap: 0; }
+  .tab-bar { display: flex; border-bottom: 2px solid var(--light-blue); margin-bottom: 1.25rem; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
   .tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
     background: none; border: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
     margin-bottom: -2px; transition: color 0.15s; }
@@ -146,6 +147,37 @@
   .my-props-empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 12px; }
   .my-props-loading { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 12px; }
 
+
+  /* ── Dashboard tab ── */
+  .dash-search-bar { margin-bottom: 12px; }
+  .dash-search-bar input { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--gray); }
+  .dash-search-bar input:focus { outline: none; border-color: var(--blue); }
+  .dash-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .dash-stat-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .dash-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .dash-stat-value { font-size: 18px; font-weight: 500; color: var(--blue); }
+  .dash-stat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .dash-section-title { font-size: 11px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase; color: var(--blue); padding-bottom: 8px; border-bottom: 2px solid var(--light-blue); margin-bottom: 10px; }
+  .dash-prop-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; }
+  .dash-prop-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .dash-prop-num { font-size: 11px; font-weight: 500; color: var(--blue); }
+  .dash-prop-date { font-size: 10px; color: var(--muted); }
+  .dash-prop-facility { font-size: 13px; font-weight: 500; color: var(--gray); margin-bottom: 2px; }
+  .dash-prop-meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .dash-prop-btns { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .dash-status-badge { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 500; }
+  .dash-status-badge.won { background: #e8f5e9; color: #2e7d32; }
+  .dash-status-badge.lost { background: #fce4ec; color: #c62828; }
+  .dash-status-badge.sent { background: #e3f2fd; color: #1565c0; }
+  .dash-status-badge.open { background: #fff8e1; color: #e65100; }
+  .dash-won-btn { padding: 4px 10px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .dash-won-btn:hover { background: #c8e6c9; }
+  .dash-lost-btn { padding: 4px 10px; background: white; color: #c62828; border: 1px solid #ef9a9a; border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .dash-lost-btn:hover { background: #fce4ec; }
+  .dash-prop-value { font-size: 11px; font-weight: 500; color: var(--blue); margin-left: auto; }
+  .dash-del-btn { padding: 4px 10px; background: white; color: #999; border: 1px solid #ddd; border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-left: auto; }
+  .dash-del-btn:hover { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
+
   /* ── DocuSign modal ── */
   .ds-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
   .ds-modal-overlay.visible { display: flex; }
@@ -166,9 +198,76 @@
   .btn-docusign:hover { background: var(--light-blue); }
 
   @media (max-width: 900px) {
+    /* Layout */
     .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 1rem; }
+    .main { padding: 1rem; }
+
+    /* Topbar */
+    .topbar { padding: 0 1rem; height: 56px; }
+    .topbar img { height: 30px; }
+    .topbar-title { font-size: 14px; }
+    .topbar-sub { font-size: 11px; }
+
+    /* Tabs */
+    .tab-bar { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .tab-btn { font-size: 11px; padding: 10px 12px; }
+
+    /* Equipment grid */
+    .eq-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Price grid */
+    .price-grid { grid-template-columns: 70px 1fr 1fr 1fr; gap: 4px; }
+    .price-grid input { font-size: 11px; padding: 6px 4px; }
+    .price-grid .price-lbl { font-size: 10px; }
+
+    /* Preview */
     .preview-meta { grid-template-columns: 1fr 1fr; }
     .preview-cat-grid { grid-template-columns: 1fr 1fr; }
+    .preview-wrap { font-size: 13px; }
+
+    /* Buttons */
+    .btn-generate, .btn-docusign, .btn-clear { font-size: 13px; padding: 11px; }
+
+    /* Dashboard stats */
+    .dash-stats { grid-template-columns: 1fr; gap: 6px; }
+    .dash-stat-value { font-size: 22px; }
+
+    /* Dashboard cards */
+    .dash-prop-btns { flex-wrap: wrap; gap: 6px; }
+    .dash-won-btn, .dash-lost-btn, .dash-del-btn { flex: 1; text-align: center; padding: 7px 8px; font-size: 12px; }
+
+    /* My Proposals cards */
+    .my-prop-btns { flex-direction: column; gap: 6px; }
+    .my-prop-dl, .my-prop-ds { width: 100%; padding: 9px; font-size: 12px; text-align: center; }
+
+    /* Login box */
+    .login-box { width: 90%; padding: 2rem 1.5rem; }
+
+    /* DS modal */
+    .ds-modal { width: 90vw; padding: 1.5rem; }
+
+    /* Inputs bigger touch targets */
+    input[type=text], input[type=email], input[type=tel] { font-size: 16px; padding: 10px 12px; }
+    textarea { font-size: 16px; }
+    select { font-size: 16px; }
+
+    /* Section spacing */
+    .section { margin-bottom: 1.25rem; }
+    label { margin-top: 12px; font-size: 13px; }
+
+    /* Qty controls */
+    .qty-control { gap: 8px; }
+    .qty-btn { width: 30px; height: 30px; font-size: 16px; }
+  }
+
+  @media (max-width: 480px) {
+    .eq-grid { grid-template-columns: 1fr 1fr; }
+    .price-grid { grid-template-columns: 60px 1fr 1fr 1fr; gap: 3px; }
+    .preview-meta { grid-template-columns: 1fr 1fr; }
+    .preview-cat-grid { grid-template-columns: 1fr; }
+    .dash-stats { grid-template-columns: 1fr; }
+    .topbar-sub { display: none; }
   }
 
   .login-overlay { position: fixed; inset: 0; background: #1B3A6B; display: flex; align-items: center; justify-content: center; z-index: 9999; }
@@ -210,6 +309,7 @@
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-new" onclick="switchTab('new')">New Proposal</button>
       <button class="tab-btn" id="tab-mine" onclick="switchTab('mine')">My Proposals</button>
+      <button class="tab-btn" id="tab-dash" onclick="switchTab('dash')">Dashboard</button>
     </div>
 
     <!-- ══ NEW PROPOSAL TAB ══ -->
@@ -288,6 +388,31 @@
       <div class="my-props-list" id="mine-list"></div>
       <div class="my-props-empty" id="mine-empty" style="display:none;">No proposals found for your name.<br>Make sure your name is filled in on the New Proposal tab.</div>
     </div><!-- end my proposals pane -->
+    <div class="tab-pane" id="pane-dash">
+      <div class="dash-search-bar">
+        <input type="text" id="dash-search" placeholder="Search by customer, proposal #, or rep..." oninput="dashFilter()">
+      </div>
+      <div class="dash-stats" id="dash-stats">
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Sold to Date</div>
+          <div class="dash-stat-value" id="ds-sold-val">—</div>
+          <div class="dash-stat-sub" id="ds-sold-count"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Outstanding Pipeline</div>
+          <div class="dash-stat-value" id="ds-pipe-val">—</div>
+          <div class="dash-stat-sub" id="ds-pipe-count"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Total Proposals</div>
+          <div class="dash-stat-value" id="ds-total-val">—</div>
+          <div class="dash-stat-sub" id="ds-total-sub"></div>
+        </div>
+      </div>
+      <div class="dash-section-title">All Proposals</div>
+      <div class="dash-list" id="dash-list"></div>
+    </div><!-- end dashboard pane -->
+
 
     <button class="btn-generate" id="gen-btn" onclick="generate()">
       <span id="btn-label">Generate &amp; Download PDF</span>
@@ -442,6 +567,7 @@ async function generate() {
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+      annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
     };
 
     const resp = await fetch('/generate', {
@@ -554,11 +680,12 @@ refresh();
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(tab) {
-  ['new','mine'].forEach(t => {
+  ['new','mine','dash'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     document.getElementById('pane-'+t).classList.toggle('active', t===tab);
   });
   if (tab === 'mine') loadMyProposals();
+  if (tab === 'dash') loadDashboard();
 }
 
 // ── My Proposals tab ──────────────────────────────────────────────────────
@@ -762,3 +889,113 @@ async function sendDocuSign() {
 
 </body>
 </html>
+<script>
+// ── Dashboard tab ─────────────────────────────────────────────────────────
+let dashCache = [];
+
+async function loadDashboard() {
+  const list = document.getElementById('dash-list');
+  list.innerHTML = '<div class="my-props-loading">Loading...</div>';
+  try {
+    const resp = await fetch('/my-proposals', {
+      headers: { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }
+    });
+    if (!resp.ok) { list.innerHTML = '<div class="my-props-empty">Could not load proposals.</div>'; return; }
+    dashCache = await resp.json();
+    dashCache.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
+    renderDashboard(dashCache);
+  } catch(e) {
+    list.innerHTML = '<div class="my-props-empty">Error loading proposals.</div>';
+  }
+}
+
+function dashFilter() {
+  const q = document.getElementById('dash-search').value.toLowerCase();
+  const filtered = q
+    ? dashCache.filter(p =>
+        (p.facility||'').toLowerCase().includes(q) ||
+        (p.proposalNumber||'').toLowerCase().includes(q) ||
+        (p.salesName||'').toLowerCase().includes(q) ||
+        (p.contact||'').toLowerCase().includes(q))
+    : dashCache;
+  renderDashboard(filtered);
+}
+
+function renderDashboard(proposals) {
+  const won  = proposals.filter(p => p.status === 'won');
+  const open = proposals.filter(p => !p.status || p.status === 'sent' || p.status === 'open');
+
+  const soldVal = won.reduce((s,p) => s + (parseFloat(p.annualValue)||0), 0);
+  const pipeVal = open.reduce((s,p) => s + (parseFloat(p.annualValue)||0), 0);
+
+  document.getElementById('ds-sold-val').textContent   = soldVal > 0 ? '$'+soldVal.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) : '—';
+  document.getElementById('ds-sold-count').textContent = won.length + ' contract' + (won.length!==1?'s':'')+' signed';
+  document.getElementById('ds-pipe-val').textContent   = pipeVal > 0 ? '$'+pipeVal.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) : '—';
+  document.getElementById('ds-pipe-count').textContent = open.length + ' open proposal' + (open.length!==1?'s':'');
+  document.getElementById('ds-total-val').textContent  = proposals.length;
+  document.getElementById('ds-total-sub').textContent  = proposals.filter(p=>p.status==='lost').length + ' lost';
+
+  const list = document.getElementById('dash-list');
+  if (proposals.length === 0) { list.innerHTML = '<div class="my-props-empty">No proposals found.</div>'; return; }
+
+  window._dashMap = {};
+  list.innerHTML = proposals.map((p, i) => {
+    window._dashMap[i] = p;
+    const d = p.generatedAt
+      ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : p.date || '—';
+    const status = p.status || (p.sentViaDocuSign ? 'sent' : 'open');
+    const statusLabels = { won:'✓ Won', lost:'✗ Lost', sent:'Sent', open:'Open' };
+    const badge   = '<span class="dash-status-badge '+status+'">'+(statusLabels[status]||status)+'</span>';
+    const val     = p.annualValue ? '<span class="dash-prop-value">$'+parseFloat(p.annualValue).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})+'/yr</span>' : '';
+    const wonBtn  = status !== 'won'  ? '<button class="dash-won-btn"  onclick="markStatus('+i+',\'won\')">Mark Won</button>' : '';
+    const lostBtn = status !== 'lost' ? '<button class="dash-lost-btn" onclick="markStatus('+i+',\'lost\')">Mark Lost</button>' : '';
+    const delBtn  = '<button class="dash-del-btn" onclick="deleteProp('+i+')">🗑 Delete</button>';
+    return '<div class="dash-prop-card" id="dash-card-'+i+'">'
+      +'<div class="dash-prop-top"><span class="dash-prop-num">'+(p.proposalNumber||'—')+'</span><span class="dash-prop-date">'+d+'</span></div>'
+      +'<div class="dash-prop-facility">'+(p.facility||'—')+'</div>'
+      +'<div class="dash-prop-meta">'+(p.salesName||'')+(p.contact?' · '+p.contact:'')+'</div>'
+      +'<div class="dash-prop-btns">'+badge+wonBtn+lostBtn+val+delBtn+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+async function markStatus(i, status) {
+  const p = window._dashMap[i];
+  if (!p) return;
+  try {
+    const resp = await fetch('/update-proposal-status', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
+      body: JSON.stringify({ proposalNumber: p.proposalNumber, status })
+    });
+    if (resp.ok) {
+      dashCache = dashCache.map(c => c.proposalNumber===p.proposalNumber ? Object.assign({},c,{status}) : c);
+      const q = document.getElementById('dash-search').value.toLowerCase();
+      renderDashboard(q ? dashCache.filter(c=>
+        (c.facility||'').toLowerCase().includes(q)||(c.proposalNumber||'').toLowerCase().includes(q)||
+        (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache);
+    }
+  } catch(e) { alert('Could not update status.'); }
+}
+
+async function deleteProp(i) {
+  const p = window._dashMap[i];
+  if (!p) return;
+  if (!confirm('Delete proposal ' + p.proposalNumber + ' for ' + (p.facility||'this customer') + '? This cannot be undone.')) return;
+  try {
+    const resp = await fetch('/delete-proposal', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
+      body: JSON.stringify({ proposalNumber: p.proposalNumber })
+    });
+    if (resp.ok) {
+      dashCache = dashCache.filter(c => c.proposalNumber !== p.proposalNumber);
+      const q = document.getElementById('dash-search').value.toLowerCase();
+      renderDashboard(q ? dashCache.filter(c=>
+        (c.facility||'').toLowerCase().includes(q)||(c.proposalNumber||'').toLowerCase().includes(q)||
+        (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache);
+    } else { alert('Could not delete proposal.'); }
+  } catch(e) { alert('Error deleting proposal.'); }
+}
+</script>

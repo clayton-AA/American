@@ -769,6 +769,8 @@ app.post('/generate', async (req, res) => {
         price:          data.price,
         duration:       data.duration,
         equipment:      eqSummary,
+        annualValue:    data.annualValue || 0,
+        status:         'open',
         generatedAt:    new Date().toISOString(),
       });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
@@ -798,6 +800,40 @@ app.get('/download/:proposalNumber', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${num}_PMA.pdf"`);
   res.setHeader('Content-Type', 'application/pdf');
   res.send(fs.readFileSync(filePath));
+});
+
+
+// ── Update proposal status ────────────────────────────────────────────────
+app.post('/update-proposal-status', (req, res) => {
+  const pw = req.headers['x-site-password'];
+  if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error: 'Unauthorized' });
+  const { proposalNumber, status } = req.body;
+  if (!proposalNumber || !['won','lost','sent','open'].includes(status)) return res.status(400).json({ error: 'Invalid' });
+  const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+  let log = [];
+  try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+  log = log.map(p => p.proposalNumber === proposalNumber ? { ...p, status } : p);
+  fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+  res.json({ ok: true });
+});
+
+
+// ── Delete proposal ───────────────────────────────────────────────────────
+app.post('/delete-proposal', (req, res) => {
+  const pw = req.headers['x-site-password'];
+  if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error: 'Unauthorized' });
+  const { proposalNumber } = req.body;
+  if (!proposalNumber) return res.status(400).json({ error: 'Missing proposalNumber' });
+  const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+  let log = [];
+  try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+  const before = log.length;
+  log = log.filter(p => p.proposalNumber !== proposalNumber);
+  fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+  // Also delete the PDF if it exists
+  const pdfPath = path.join(DATA_DIR, 'pdfs', `${proposalNumber}.pdf`);
+  try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch(e) {}
+  res.json({ ok: true, removed: before - log.length });
 });
 
 // ── Admin dashboard routes ────────────────────────────────────────────────
