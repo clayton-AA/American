@@ -888,7 +888,7 @@ app.post('/send-docusign', async (req, res) => {
       log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
-    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:data.salesEmail, date:data.date });
+    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date });
     res.json({ ok:true, envelopeId, proposalNumber:data.proposalNumber });
   } catch(err) { console.error('DocuSign send error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
@@ -901,7 +901,7 @@ app.post('/resend-docusign', async (req, res) => {
     const filePath = path.join(DATA_DIR, 'pdfs', `${proposalNumber}.pdf`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — please regenerate the proposal first.' });
     const pdfBuffer  = fs.readFileSync(filePath);
-    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail, date:'' });
+    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail:'Clayton@americanairinc.com', date:'' });
     res.json({ ok:true, envelopeId, proposalNumber });
   } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
