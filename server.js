@@ -836,6 +836,47 @@ app.post('/delete-proposal', (req, res) => {
   res.json({ ok: true, removed: before - log.length });
 });
 
+
+// ── DocuSign Connect Webhook ──────────────────────────────────────────────
+// Receives envelope completion events from DocuSign Connect
+app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5mb' }), (req, res) => {
+  try {
+    // DocuSign sends JSON — parse raw body
+    const body = JSON.parse(req.body.toString());
+
+    const event    = body.event;
+    const envelope = body.data && body.data.envelopeSummary ? body.data.envelopeSummary : body.envelopeSummary;
+
+    if (!envelope) { return res.status(200).send('ok'); }
+
+    const envelopeId = envelope.envelopeId;
+    const status     = (envelope.status || '').toLowerCase();
+
+    console.log(`DocuSign webhook: envelopeId=${envelopeId} status=${status}`);
+
+    // Only act on 'completed' (both parties signed)
+    if (status === 'completed' && envelopeId) {
+      const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+      let log = [];
+      try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+
+      const match = log.find(p => p.envelopeId === envelopeId);
+      if (match) {
+        log = log.map(p => p.envelopeId === envelopeId ? { ...p, status: 'won', signedAt: new Date().toISOString() } : p);
+        fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+        console.log(`Marked ${match.proposalNumber} as WON via DocuSign webhook`);
+      } else {
+        console.log(`Webhook: no proposal found for envelopeId=${envelopeId}`);
+      }
+    }
+
+    res.status(200).send('ok');
+  } catch(e) {
+    console.error('Webhook error:', e.message);
+    res.status(200).send('ok'); // Always return 200 to DocuSign
+  }
+});
+
 // ── Admin dashboard routes ────────────────────────────────────────────────
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'aaadmin';
 
