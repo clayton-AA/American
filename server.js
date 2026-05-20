@@ -805,8 +805,10 @@ app.get('/download/:proposalNumber', (req, res) => {
 
 // ── Update proposal status ────────────────────────────────────────────────
 app.post('/update-proposal-status', (req, res) => {
-  const pw = req.headers['x-site-password'];
-  if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error: 'Unauthorized' });
+  const pw = req.headers['x-site-password'] || req.headers['x-admin-password'];
+  const SITE_PW  = process.env.SITE_PASSWORD  || 'americanair';
+  const ADMIN_PW = process.env.ADMIN_PASSWORD || 'aaadmin';
+  if (pw !== SITE_PW && pw !== ADMIN_PW) return res.status(401).json({ error: 'Unauthorized' });
   const { proposalNumber, status } = req.body;
   if (!proposalNumber || !['won','lost','sent','open'].includes(status)) return res.status(400).json({ error: 'Invalid' });
   const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');

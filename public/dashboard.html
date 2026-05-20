@@ -63,6 +63,18 @@
   .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
   .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--gray); }
   .loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 13px; }
+  tbody tr.status-won { background: #e8f5e9 !important; }
+  tbody tr.status-won:hover { background: #d4edda !important; }
+  tbody tr.status-lost { background: #fdecea !important; }
+  tbody tr.status-lost:hover { background: #fad7d6 !important; }
+  .action-cell { display: flex; gap: 5px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+  .status-btn { padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1px solid; white-space: nowrap; transition: background 0.1s, color 0.1s; }
+  .won-btn { background: white; color: #2e7d32; border-color: #2e7d32; }
+  .won-btn:hover:not(.active) { background: #e8f5e9; }
+  .won-btn.active { background: #2e7d32; color: white; }
+  .lost-btn { background: white; color: #c62828; border-color: #c62828; }
+  .lost-btn:hover:not(.active) { background: #fdecea; }
+  .lost-btn.active { background: #c62828; color: white; }
 </style>
 </head>
 <body>
@@ -194,17 +206,39 @@ function renderTable(proposals) {
   tbody.innerHTML = proposals.map(p => {
     const d = p.generatedAt ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : p.date||'—';
     const dsTag = p.sentViaDocuSign ? '<span class="ds-badge">DocuSign</span>' : '';
-    return `<tr>
-      <td><div class="prop-num">${p.proposalNumber||'—'}${dsTag}</div></td>
+    const status = p.status || 'open';
+    const rowClass = status === 'won' ? 'status-won' : status === 'lost' ? 'status-lost' : '';
+    const num = p.proposalNumber || '';
+    return `<tr class="${rowClass}">
+      <td><div class="prop-num">${num||'—'}${dsTag}</div></td>
       <td><div class="facility-name">${p.facility||'—'}</div>${p.contact?`<div class="facility-contact">${p.contact}</div>`:''}</td>
       <td><span class="rep-badge">${p.salesName||'—'}</span></td>
       <td><div class="date-val">${d}</div></td>
       <td><div class="price-val">${p.price||'—'}</div></td>
-      <td><button class="dl-btn" onclick="redownload('${p.proposalNumber}')">↓ PDF</button></td>
+      <td><div class="action-cell">
+        <button class="status-btn won-btn${status==='won'?' active':''}" onclick="toggleStatus('${num}','won')">Won</button>
+        <button class="status-btn lost-btn${status==='lost'?' active':''}" onclick="toggleStatus('${num}','lost')">Lost</button>
+        <button class="dl-btn" onclick="redownload('${num}')">↓ PDF</button>
+      </div></td>
     </tr>`;
   }).join('');
 }
 function redownload(num) { const a=document.createElement('a'); a.href=`/download/${num}?pw=${encodeURIComponent(adminPw)}`; a.download=`${num}_PMA.pdf`; a.click(); }
+async function toggleStatus(proposalNumber, newStatus) {
+  const proposal = allProposals.find(p => p.proposalNumber === proposalNumber);
+  if (!proposal) return;
+  const targetStatus = (proposal.status || 'open') === newStatus ? 'open' : newStatus;
+  try {
+    const resp = await fetch('/update-proposal-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPw },
+      body: JSON.stringify({ proposalNumber, status: targetStatus })
+    });
+    if (!resp.ok) { alert('Failed to update status'); return; }
+    allProposals = allProposals.map(p => p.proposalNumber === proposalNumber ? { ...p, status: targetStatus } : p);
+    filterTable();
+  } catch(e) { alert('Error updating status'); }
+}
 const savedPw = sessionStorage.getItem('adminPassword');
 if (savedPw) { adminPw=savedPw; fetch('/admin-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:savedPw})}).then(r=>r.json()).then(d=>{if(d.ok){document.getElementById('login-overlay').style.display='none';loadData();}else{sessionStorage.removeItem('adminPassword');}}); }
 </script>
