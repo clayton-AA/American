@@ -284,23 +284,6 @@
     .topbar-sub { display: none; }
   }
 
-  /* ── Toasts & validation ── */
-  .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; }
-  .toast { background: #1B3A6B; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 12px; max-width: 340px;
-    animation: toast-in 0.2s ease; }
-  .toast.error { background: #c62828; }
-  .toast.success { background: #2e7d32; }
-  .toast button { background: rgba(255,255,255,0.22); border: none; color: white; padding: 4px 12px;
-    border-radius: 5px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; flex-shrink: 0; }
-  .toast button:hover { background: rgba(255,255,255,0.35); }
-  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  input.invalid, textarea.invalid { border-color: #c62828 !important; background: #fff8f8; }
-  .req::after { content: ' *'; color: #c62828; }
-  input[type=date] { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--gray); background: white; }
-  input[type=date]:focus { outline: none; border-color: var(--blue); }
-
   .login-overlay { position: fixed; inset: 0; background: #1B3A6B; display: flex; align-items: center; justify-content: center; z-index: 9999; }
   .login-box { background: white; border-radius: 12px; padding: 2.5rem 2rem; width: 340px; text-align: center; }
   .login-logo { height: 48px; margin-bottom: 1.5rem; }
@@ -347,14 +330,14 @@
     <div class="tab-pane active" id="pane-new">
 <div class="section">
       <div class="section-title">Customer Info</div>
-      <label class="req">Facility / Property name</label>
+      <label>Facility / Property name</label>
       <input type="text" id="inp-facility" placeholder="e.g. Henley Enterprises — Lowell" oninput="refresh()">
       <label>Facility address</label>
       <input type="text" id="inp-address" placeholder="e.g. 123 Main St, Lowell MA 01852" oninput="refresh()">
-      <label class="req">Contact name</label>
+      <label>Contact name</label>
       <input type="text" id="inp-contact" placeholder="Property manager name" oninput="refresh()">
-      <label class="req">Agreement date</label>
-      <input type="date" id="inp-date" onchange="refresh()" oninput="refresh()">
+      <label>Agreement date</label>
+      <input type="text" id="inp-date" placeholder="e.g. April 1, 2026" oninput="refresh()">
 
     </div>
 
@@ -387,11 +370,11 @@
 
     <div class="section">
       <div class="section-title">Salesperson</div>
-      <label class="req">Name</label>
+      <label>Name</label>
       <input type="text" id="inp-sales-name" placeholder="Your full name" oninput="refresh()">
-      <label class="req">Phone</label>
+      <label>Phone</label>
       <input type="tel" id="inp-sales-phone" placeholder="e.g. 978-555-0100" oninput="refresh()">
-      <label class="req">Email</label>
+      <label>Email</label>
       <input type="email" id="inp-sales-email" placeholder="you@americanairinc.com" oninput="refresh()">
     </div>
 
@@ -407,13 +390,6 @@
       <div class="section-title">Equipment on Site</div>
       <div class="eq-grid" id="eq-grid"></div>
     </div>
-
-    <button class="btn-generate" id="gen-btn" onclick="generate()">
-      <span id="btn-label">Generate &amp; Download PDF</span>
-      <div class="spinner" id="spinner"></div>
-    </button>
-    <button class="btn-docusign" onclick="openDSModal()">&#9993; Send for Signature via DocuSign</button>
-    <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
 
     </div><!-- end new proposal pane -->
 
@@ -453,6 +429,14 @@
       <div class="dash-list" id="dash-list"></div>
     </div><!-- end dashboard pane -->
 
+
+    <button class="btn-generate" id="gen-btn" onclick="generate()">
+      <span id="btn-label">Generate &amp; Download PDF</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+    <button class="btn-docusign" onclick="openDSModal()">&#9993; Send for Signature via DocuSign</button>
+    <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
+
   </aside>
 
   <main class="main">
@@ -468,14 +452,11 @@
       </div>
       <div class="preview-hero">
         <h2 id="prev-facility">Customer facility</h2>
-        <p id="prev-address" style="display:none;"></p>
         <p id="prev-contact">Contact name · Agreement date</p>
       </div>
       <div class="preview-meta">
-        <div class="preview-meta-item"><div class="preview-meta-label">Agreement date</div><div class="preview-meta-val" id="prev-date">—</div></div>
-        <div class="preview-meta-item"><div class="preview-meta-label">Equipment types</div><div class="preview-meta-val" id="prev-types">—</div></div>
+
         <div class="preview-meta-item"><div class="preview-meta-label">Total units</div><div class="preview-meta-val" id="prev-units">—</div></div>
-        <div class="preview-meta-item"><div class="preview-meta-label">Annual price (1 yr)</div><div class="preview-meta-val" id="prev-annual">—</div></div>
       </div>
       <div class="preview-body" id="preview-body">
         <div class="preview-empty">Select equipment above to build your proposal preview.</div>
@@ -533,77 +514,20 @@ function updateField(id, field, val) {
 
 function gv(id) { return document.getElementById(id).value.trim(); }
 
-// Agreement date as "June 12, 2026" (the PDF/server expects long-form text)
-function fmtDate() {
-  const v = document.getElementById('inp-date').value;
-  if (!v) return '';
-  const d = new Date(v + 'T00:00:00');
-  return isNaN(d) ? v : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-// ── Toasts ────────────────────────────────────────────────────────────────
-function toast(msg, type, opts) {
-  type = type || 'info'; opts = opts || {};
-  const wrap = document.getElementById('toast-wrap');
-  const t = document.createElement('div');
-  t.className = 'toast ' + type;
-  const span = document.createElement('span');
-  span.textContent = msg;
-  t.appendChild(span);
-  let done = false;
-  const finish = (cb) => { if (done) return; done = true; t.remove(); if (cb) cb(); };
-  if (opts.actionLabel) {
-    const b = document.createElement('button');
-    b.textContent = opts.actionLabel;
-    b.onclick = () => finish(opts.onAction);
-    t.appendChild(b);
-  }
-  wrap.appendChild(t);
-  setTimeout(() => finish(opts.onTimeout), opts.duration || 4000);
-}
-
-// ── Inline validation ─────────────────────────────────────────────────────
-const REQUIRED_FIELDS = ['inp-facility','inp-contact','inp-date','inp-sales-name','inp-sales-phone','inp-sales-email'];
-
-function validateForm() {
-  let firstBad = null;
-  REQUIRED_FIELDS.forEach(id => {
-    const el = document.getElementById(id);
-    const bad = !el.value.trim();
-    el.classList.toggle('invalid', bad);
-    if (bad && !firstBad) firstBad = el;
-  });
-  if (firstBad) {
-    firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    firstBad.focus({ preventScroll: true });
-    toast('Please fill in the highlighted required fields.', 'error');
-    return false;
-  }
-  return true;
-}
-
 function refresh() {
   const active = EQ_DATA.filter(e => state[e.id].active);
   const facility = gv('inp-facility');
   const contact  = gv('inp-contact');
-  const date     = fmtDate();
+  const date     = gv('inp-date');
   const sName    = gv('inp-sales-name');
   const sPhone   = gv('inp-sales-phone');
 
-  const address = gv('inp-address');
   document.getElementById('prev-facility').textContent = facility || 'Customer facility';
-  const addrEl = document.getElementById('prev-address');
-  addrEl.textContent = address;
-  addrEl.style.display = address ? 'block' : 'none';
   document.getElementById('prev-contact').textContent  = [contact, date].filter(Boolean).join(' · ') || '—';
   document.getElementById('prev-sales-info').textContent = sName ? `${sName}${sPhone?' · '+sPhone:''}` : '—';
 
   const totalUnits = active.reduce((s,e) => s + state[e.id].qty, 0);
   document.getElementById('prev-units').textContent = totalUnits || '—';
-  document.getElementById('prev-types').textContent = active.length || '—';
-  document.getElementById('prev-date').textContent  = date || '—';
-  const annual1 = parseFloat(document.getElementById('p-1-a').value) || 0;
-  document.getElementById('prev-annual').textContent = annual1 ? '$' + Math.round(annual1).toLocaleString() : '—';
 
   const body = document.getElementById('preview-body');
   if (active.length === 0) {
@@ -625,43 +549,6 @@ function refresh() {
     html += `</div></div>`;
   });
 
-  // ── Pricing preview (mirrors the PDF table) ──
-  const pt = getPriceTable();
-  if (pt.y1q || pt.y1s || pt.y1a) {
-    const cell = (v) => v ? '$' + Math.round(v).toLocaleString() : '—';
-    html += `<div class="preview-eq">
-      <div class="preview-eq-title">Service Pricing<span class="preview-eq-badge">3 yr −3% · 5 yr −5%</span></div>
-      <table style="width:100%;border-collapse:collapse;border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;font-size:12px;">
-        <tr style="background:var(--light-blue);color:var(--blue);">
-          <th style="padding:7px 12px;text-align:left;font-weight:500;"></th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Quarterly</th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Semi-Annual</th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Annual</th>
-        </tr>
-        <tr><td style="padding:6px 12px;font-weight:500;">1 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1a)}</td></tr>
-        <tr style="background:#fafcff;"><td style="padding:6px 12px;font-weight:500;">3 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3a)}</td></tr>
-        <tr><td style="padding:6px 12px;font-weight:500;">5 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5a)}</td></tr>
-      </table>
-    </div>`;
-  }
-
-  // ── Additional scope & exclusions preview ──
-  const additions  = gv('inp-additions');
-  const exclusions = gv('inp-exclusions');
-  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  if (additions) {
-    html += `<div class="preview-eq">
-      <div class="preview-eq-title">Additional Services Included</div>
-      <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;white-space:pre-wrap;">${esc(additions)}</div>
-    </div>`;
-  }
-  if (exclusions) {
-    html += `<div class="preview-eq">
-      <div class="preview-eq-title">Exclusions</div>
-      <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;white-space:pre-wrap;">${esc(exclusions)}</div>
-    </div>`;
-  }
-
   html += `<div class="preview-summary">
     <div class="preview-summary-item">Equipment types: <strong>${active.length}</strong></div>
     <div class="preview-summary-item">Total units: <strong>${totalUnits}</strong></div>
@@ -672,8 +559,11 @@ function refresh() {
 
 async function generate() {
   const active = EQ_DATA.filter(e => state[e.id].active);
-  if (active.length === 0) { toast('Select at least one equipment type.', 'error'); return; }
-  if (!validateForm()) return;
+  if (active.length === 0) { alert('Please select at least one equipment type.'); return; }
+
+  const required = ['inp-facility','inp-contact','inp-date','inp-sales-name','inp-sales-phone','inp-sales-email'];
+  const missing  = required.filter(id => !gv(id));
+  if (missing.length) { alert('Please fill in all required fields before generating.'); return; }
 
   const btn  = document.getElementById('gen-btn');
   const lbl  = document.getElementById('btn-label');
@@ -688,7 +578,7 @@ async function generate() {
       salesName:  gv('inp-sales-name'),
       salesPhone: gv('inp-sales-phone'),
       salesEmail: gv('inp-sales-email'),
-      date:       fmtDate(),
+      date:       gv('inp-date'),
       priceTable: getPriceTable(),
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
@@ -718,31 +608,22 @@ async function generate() {
     URL.revokeObjectURL(url);
 
   } catch(e) {
-    toast('Error generating document: ' + e.message, 'error', { duration: 8000 });
+    alert('Error generating document: ' + e.message);
   } finally {
-    btn.disabled = false; lbl.textContent = 'Generate & Download PDF'; spin.style.display = 'none';
+    btn.disabled = false; lbl.textContent = 'Generate & Download Word Doc'; spin.style.display = 'none';
   }
 }
 
 function clearAll() {
-  // Salesperson fields are kept (persisted per rep); customer/pricing fields reset
-  ['inp-facility','inp-address','inp-contact','inp-additions','inp-exclusions','p-1-q','p-1-s','p-1-a']
+  ['inp-facility','inp-address','inp-contact','inp-date','inp-sales-name','inp-sales-phone','inp-sales-email','inp-additions','inp-exclusions','p-1-q','p-1-s','p-1-a']
     .forEach(id => document.getElementById(id).value = '');
   ['p-3-q','p-3-s','p-3-a','p-5-q','p-5-s','p-5-a'].forEach(id => {
     document.getElementById(id).textContent = '—';
     document.getElementById(id).classList.add('empty');
   });
-  setDateToToday();
-  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
   buildGrid();
   refresh();
-}
-
-function setDateToToday() {
-  const d = new Date();
-  document.getElementById('inp-date').value =
-    d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
 // ── Pricing table calculator ─────────────────────────────────────────────
@@ -776,7 +657,6 @@ function calcPriceTable() {
       el5.classList.add('empty');
     }
   });
-  refresh(); // keep live preview in sync with pricing
 }
 
 function getPriceTable() {
@@ -810,18 +690,6 @@ async function doLogin() {
 if (sessionStorage.getItem('sitePassword')) {
   document.getElementById('login-overlay').style.display = 'none';
 }
-
-// ── Init: remember salesperson, default date, clear validation on input ──
-['inp-sales-name','inp-sales-phone','inp-sales-email'].forEach(id => {
-  const el = document.getElementById(id);
-  const saved = localStorage.getItem('aa_' + id);
-  if (saved && !el.value) el.value = saved;
-  el.addEventListener('input', () => localStorage.setItem('aa_' + id, el.value));
-});
-if (!document.getElementById('inp-date').value) setDateToToday();
-REQUIRED_FIELDS.forEach(id => {
-  document.getElementById(id).addEventListener('input', function() { this.classList.remove('invalid'); });
-});
 
 buildGrid();
 refresh();
@@ -930,8 +798,9 @@ let _dsPropData = null; // null = new proposal, object = existing proposal resen
 function openDSModal() {
   // Validate form first
   const active = EQ_DATA.filter(e => state[e.id].active);
-  if (active.length === 0) { toast('Select at least one equipment type first.', 'error'); return; }
-  if (!validateForm()) return;
+  if (active.length === 0) { alert('Please select at least one equipment type first.'); return; }
+  const required = ['inp-facility','inp-contact','inp-date','inp-sales-name','inp-sales-phone','inp-sales-email'];
+  if (required.some(id => !gv(id))) { alert('Please fill in all required fields first.'); return; }
   _dsPropData = null;
   document.getElementById('ds-customer-name').value  = gv('inp-contact');
   document.getElementById('ds-customer-email').value = '';
@@ -962,7 +831,7 @@ function closeDSModal() {
 async function sendDocuSign() {
   const customerName  = document.getElementById('ds-customer-name').value.trim();
   const customerEmail = document.getElementById('ds-customer-email').value.trim();
-  if (!customerName || !customerEmail) { toast('Enter the customer name and email.', 'error'); return; }
+  if (!customerName || !customerEmail) { alert('Please enter the customer name and email.'); return; }
 
   const btn  = document.getElementById('ds-send-btn');
   const lbl  = document.getElementById('ds-btn-label');
@@ -988,7 +857,7 @@ async function sendDocuSign() {
         body:    JSON.stringify({
           facility: gv('inp-facility'), address: gv('inp-address'), contact: gv('inp-contact'),
           salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
-          date: fmtDate(), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
+          date: gv('inp-date'), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
           equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
           customerName, customerEmail,
         }),
@@ -1009,7 +878,7 @@ async function sendDocuSign() {
     setTimeout(() => { closeDSModal(); if (!_dsPropData) loadMyProposals(); }, 3000);
 
   } catch(e) {
-    toast('Error sending: ' + e.message, 'error', { duration: 8000 });
+    alert('Error: ' + e.message);
     btn.disabled = false; lbl.textContent = 'Send for Signature'; spin.style.display = 'none';
   }
 }
@@ -1034,6 +903,8 @@ async function sendDocuSign() {
   </div>
 </div>
 
+</body>
+</html>
 <script>
 // ── Dashboard tab ─────────────────────────────────────────────────────────
 let dashCache = [];
@@ -1105,13 +976,6 @@ function renderDashboard(proposals) {
   }).join('');
 }
 
-function dashFiltered() {
-  const q = document.getElementById('dash-search').value.toLowerCase();
-  return q ? dashCache.filter(c=>
-    (c.facility||'').toLowerCase().includes(q)||(c.proposalNumber||'').toLowerCase().includes(q)||
-    (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache;
-}
-
 async function markStatus(i, status) {
   const p = window._dashMap[i];
   if (!p) return;
@@ -1123,39 +987,32 @@ async function markStatus(i, status) {
     });
     if (resp.ok) {
       dashCache = dashCache.map(c => c.proposalNumber===p.proposalNumber ? Object.assign({},c,{status}) : c);
-      renderDashboard(dashFiltered());
-      toast('Marked ' + p.proposalNumber + ' as ' + status + '.', status === 'won' ? 'success' : 'info');
-    } else { toast('Could not update status.', 'error'); }
-  } catch(e) { toast('Could not update status.', 'error'); }
+      const q = document.getElementById('dash-search').value.toLowerCase();
+      renderDashboard(q ? dashCache.filter(c=>
+        (c.facility||'').toLowerCase().includes(q)||(c.proposalNumber||'').toLowerCase().includes(q)||
+        (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache);
+    }
+  } catch(e) { alert('Could not update status.'); }
 }
 
-function deleteProp(i) {
+async function deleteProp(i) {
   const p = window._dashMap[i];
   if (!p) return;
-  // Optimistic remove with Undo — server delete happens after the toast expires
-  dashCache = dashCache.filter(c => c.proposalNumber !== p.proposalNumber);
-  renderDashboard(dashFiltered());
-  toast('Deleted ' + p.proposalNumber + ' — ' + (p.facility||''), 'info', {
-    actionLabel: 'Undo',
-    duration: 6000,
-    onAction: () => {
-      dashCache.push(p);
-      dashCache.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
-      renderDashboard(dashFiltered());
-    },
-    onTimeout: async () => {
-      try {
-        const resp = await fetch('/delete-proposal', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
-          body: JSON.stringify({ proposalNumber: p.proposalNumber })
-        });
-        if (!resp.ok) throw new Error();
-      } catch(e) {
-        toast('Server delete failed for ' + p.proposalNumber + ' — it will reappear on reload.', 'error', { duration: 8000 });
-      }
-    }
-  });
+  if (!confirm('Delete proposal ' + p.proposalNumber + ' for ' + (p.facility||'this customer') + '? This cannot be undone.')) return;
+  try {
+    const resp = await fetch('/delete-proposal', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
+      body: JSON.stringify({ proposalNumber: p.proposalNumber })
+    });
+    if (resp.ok) {
+      dashCache = dashCache.filter(c => c.proposalNumber !== p.proposalNumber);
+      const q = document.getElementById('dash-search').value.toLowerCase();
+      renderDashboard(q ? dashCache.filter(c=>
+        (c.facility||'').toLowerCase().includes(q)||(c.proposalNumber||'').toLowerCase().includes(q)||
+        (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache);
+    } else { alert('Could not delete proposal.'); }
+  } catch(e) { alert('Error deleting proposal.'); }
 }
 </script>
 
@@ -1217,8 +1074,8 @@ function startRenewal(proposalNumber) {
     if (p.contact)  { const el = document.getElementById('inp-contact');  if(el) el.value = p.contact; }
     if (p.address)  { const el = document.getElementById('inp-address');  if(el) el.value = p.address || ''; }
     // Set today's date
-    setDateToToday();
-    refresh();
+    const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const dateEl = document.getElementById('inp-date'); if(dateEl) dateEl.value = today;
     window.scrollTo(0,0);
   }, 100);
 }
@@ -1230,8 +1087,3 @@ renderDashboard = function(proposals) {
   renderRenewals(dashCache); // Always use full cache for renewals
 };
 </script>
-
-<div class="toast-wrap" id="toast-wrap"></div>
-
-</body>
-</html>
