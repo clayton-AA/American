@@ -564,6 +564,11 @@
       <div class="survey-summary" id="survey-summary" style="display:none;"></div>
       <button class="survey-apply" id="survey-apply" onclick="surveyApply()" disabled>Apply Survey to Proposal</button>
       <button class="survey-clear" onclick="surveyClear()">Clear survey</button>
+
+      <div class="section-title" style="margin-top:16px;">ServiceTitan</div>
+      <select id="survey-st-loc" style="display:none; width:100%; padding:8px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; font-family:'DM Sans',sans-serif; color:var(--gray); margin-bottom:8px;"></select>
+      <button class="survey-apply" id="survey-push" onclick="pushSurveyToST()" disabled>&#8682; Push Equipment to ServiceTitan</button>
+      <div class="calc-note" id="survey-push-note"></div>
     </div><!-- end survey pane -->
 
     <!-- ══ MY PROPOSALS TAB ══ -->
@@ -1289,6 +1294,7 @@ function renderSurvey() {
       </div>
     </div>`).join('');
   surveySummary();
+  updateSurveyPushUI();
 }
 
 // System age = oldest component (original install usually survives partial replacements)
@@ -1376,12 +1382,83 @@ function surveyClear() {
   });
 }
 
+// ── Push surveyed equipment into ServiceTitan ─────────────────────────────
+function updateSurveyPushUI() {
+  const btn  = document.getElementById('survey-push');
+  const note = document.getElementById('survey-push-note');
+  const sel  = document.getElementById('survey-st-loc');
+  if (!btn) return;
+  if (!stSelectedCustomerId) {
+    btn.disabled = true;
+    sel.style.display = 'none';
+    note.textContent = surveyList.length
+      ? 'To push, first pick the customer from the ServiceTitan dropdown on the New Proposal tab.'
+      : '';
+    return;
+  }
+  btn.disabled = surveyList.length === 0;
+  note.textContent = 'Pushes ' + surveyList.length + ' tag' + (surveyList.length!==1?'s':'') +
+    ' to ' + stSelectedCustomerName + ' as equipment records. Existing serial numbers are skipped.';
+  if (stSelectedLocations.length > 1) {
+    sel.style.display = 'block';
+    sel.innerHTML = stSelectedLocations.map(l =>
+      `<option value="${l.id}">${(l.name || 'Location ' + l.id)}${l.address ? ' — ' + l.address : ''}</option>`).join('');
+  } else {
+    sel.style.display = 'none';
+  }
+}
+
+function surveyPushUnits() {
+  return surveyList.map(u => {
+    const g = surveyList.filter(x => x.sys === u.sys);
+    const t = groupType(g);
+    const typeName = (EQ_DATA.find(e => e.id === t) || {}).name || 'HVAC Unit';
+    const multi = g.length > 1;
+    const name = multi
+      ? typeName + ' (System ' + u.sys + ') — ' + (COMP_LABELS[u.comp] || 'Component')
+      : typeName + (u.brand ? ' — ' + u.brand : '');
+    const memo = [u.filter ? 'Filter ' + u.filter : '', 'Added via AA site survey'].filter(Boolean).join(' · ');
+    return { name, brand: u.brand, model: u.model, serial: u.serial, year: u.year, memo };
+  });
+}
+
+async function pushSurveyToST() {
+  if (!stSelectedCustomerId || surveyList.length === 0) return;
+  const sel = document.getElementById('survey-st-loc');
+  const locationId = stSelectedLocations.length > 1 ? sel.value
+    : (stSelectedLocations[0] && stSelectedLocations[0].id);
+  if (!locationId) { toast('No ServiceTitan location found for this customer.', 'error'); return; }
+  const btn = document.getElementById('survey-push');
+  btn.disabled = true; btn.textContent = 'Pushing to ServiceTitan...';
+  try {
+    const resp = await fetch('/st-push-equipment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+      body: JSON.stringify({ customerId: stSelectedCustomerId, locationId, units: surveyPushUnits() }),
+    });
+    const r = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(r.error || 'Push failed');
+    let msg = r.created + ' record' + (r.created!==1?'s':'') + ' created in ServiceTitan.';
+    if (r.skipped && r.skipped.length) msg += ' ' + r.skipped.length + ' skipped (serial already on file).';
+    if (r.failed && r.failed.length) msg += ' ' + r.failed.length + ' FAILED — check Render logs.';
+    toast(msg, r.failed && r.failed.length ? 'error' : 'success', { duration: 8000 });
+  } catch(e) {
+    toast('Push error: ' + e.message, 'error', { duration: 8000 });
+  } finally {
+    btn.textContent = '⇪ Push Equipment to ServiceTitan';
+    updateSurveyPushUI();
+  }
+}
+
 // ── ServiceTitan customer typeahead ──────────────────────────────────────
 let stEnabled = true;        // flips false if server says ST isn't configured
 let stTimer = null;
 let stResults = [];
 let stHighlight = -1;
 let stSelectedEmail = '';    // email from ST contacts, used to prefill DocuSign
+let stSelectedCustomerId = ''; // set when a customer is picked from the typeahead
+let stSelectedCustomerName = '';
+let stSelectedLocations = [];  // [{id, name, address}] for the picked customer
 
 function stHeaders() { return { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }; }
 
@@ -1391,6 +1468,8 @@ function stSearch(q) {
   const dd = document.getElementById('st-dd');
   document.getElementById('st-loaded-tag').style.display = 'none';
   stSelectedEmail = '';
+  stSelectedCustomerId = ''; stSelectedCustomerName = ''; stSelectedLocations = [];
+  updateSurveyPushUI();
   q = q.trim();
   if (q.length < 2) { dd.classList.remove('open'); return; }
   stTimer = setTimeout(async () => {
@@ -1448,6 +1527,9 @@ async function stPick(i) {
   document.getElementById('inp-facility').value = c.name;
   document.getElementById('inp-facility').classList.remove('invalid');
   if (c.address) document.getElementById('inp-address').value = c.address;
+  stSelectedCustomerId = c.id;
+  stSelectedCustomerName = c.name;
+  updateSurveyPushUI();
   refresh();
   stLoadEquipment(c.id); // runs in parallel with the detail fetch below
   // Pull location + contact details in the background
@@ -1456,6 +1538,8 @@ async function stPick(i) {
     if (!resp.ok) return;
     const det = await resp.json();
     // Prefer the service location address over the billing address
+    stSelectedLocations = det.locations || [];
+    updateSurveyPushUI();
     if (det.locations && det.locations.length && det.locations[0].address) {
       document.getElementById('inp-address').value = det.locations[0].address;
     }

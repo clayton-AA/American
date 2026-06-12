@@ -320,6 +320,76 @@ app.get('/st-equipment/:id', async (req, res) => {
   }
 });
 
+// POST to ServiceTitan (same auth/retry pattern as stFetch)
+async function stPost(pathAfterV2, body) {
+  const p = pathAfterV2.replace(/^(\/[^/]+\/v\d+)/, '$1/tenant/' + process.env.ST_TENANT_ID);
+  const url = ST_API_BASE + p;
+  const doIt = async () => {
+    const token = await getSTToken();
+    return fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'ST-App-Key': process.env.ST_APP_KEY, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  };
+  let resp = await doIt();
+  if (resp.status === 401) { stToken = null; resp = await doIt(); }
+  const text = await resp.text();
+  if (!resp.ok) throw new Error('ST POST ' + pathAfterV2 + ' → ' + resp.status + ': ' + text.slice(0, 300));
+  return text ? JSON.parse(text) : null;
+}
+
+// Push surveyed equipment into ServiceTitan as installed-equipment records.
+// Dedupes by serial number against the location's existing equipment.
+app.post('/st-push-equipment', async (req, res) => {
+  if (req.headers['x-site-password'] !== (process.env.SITE_PASSWORD || 'americanair'))
+    return res.status(401).json({ error: 'Unauthorized' });
+  if (!stConfigured()) return res.status(503).json({ error: 'ServiceTitan not configured' });
+  const { customerId, locationId, units } = req.body || {};
+  if (!customerId || !locationId || !Array.isArray(units) || units.length === 0)
+    return res.status(400).json({ error: 'Missing customerId, locationId, or units' });
+  try {
+    // Confirm the location belongs to this customer
+    const locData = await stFetch('/crm/v2/locations', { customerId: String(customerId), active: 'True', pageSize: 100 });
+    const locs = (locData.data || []);
+    if (!locs.some(l => String(l.id) === String(locationId)))
+      return res.status(400).json({ error: 'Location does not belong to this customer' });
+
+    // Existing serials at this location → dedupe set
+    const existing = await stFetchAllPages('/equipmentsystems/v2/installed-equipment', {
+      locationIds: String(locationId), active: 'Any',
+    });
+    const have = new Set(existing.map(r => String(r.serialNumber || r.serial || '').trim().toUpperCase()).filter(Boolean));
+
+    const created = [], skipped = [], failed = [];
+    for (const u of units) {
+      const serial = String(u.serial || '').trim();
+      if (serial && have.has(serial.toUpperCase())) { skipped.push(serial); continue; }
+      const payload = {
+        locationId: Number(locationId),
+        name: String(u.name || 'Surveyed unit').slice(0, 120),
+        ...(u.brand  ? { manufacturer: String(u.brand).slice(0, 60) } : {}),
+        ...(u.model  ? { model: String(u.model).slice(0, 60) } : {}),
+        ...(serial   ? { serialNumber: serial.slice(0, 60) } : {}),
+        ...(u.year && Number(u.year) > 1970 ? { installedOn: u.year + '-06-15T00:00:00Z' } : {}),
+        ...(u.memo   ? { memo: String(u.memo).slice(0, 300) } : {}),
+      };
+      try {
+        await stPost('/equipmentsystems/v2/installed-equipment', payload);
+        created.push(payload.name);
+        if (serial) have.add(serial.toUpperCase());
+      } catch (e) {
+        console.error('ST equipment create failed:', e.message);
+        failed.push(payload.name);
+      }
+    }
+    res.json({ created: created.length, skipped, failed });
+  } catch (e) {
+    console.error('ST push error:', e.message);
+    res.status(502).json({ error: 'ServiceTitan push failed' });
+  }
+});
+
 // ── Site survey: AI nameplate reader ──────────────────────────────────────
 // Sends a photo of an equipment data tag to the Claude API and returns
 // structured fields. Requires ANTHROPIC_API_KEY env var; the survey tab

@@ -44,6 +44,13 @@ Optional: TAG_MODEL to override the model (default claude-haiku-4-5-20251001).
 Cost is roughly $0.01 per photo. Without the key, the Survey tab still works
 for manual entry — photos just won't auto-read.
 
+The Survey tab can also push surveyed equipment into ServiceTitan as
+installed-equipment records (button at the bottom of the tab). This requires
+the ST_* variables above, and the ServiceTitan app must have WRITE access to
+the Equipment Systems scope (the same app used by servicetitan-mcp already
+does). Records are deduplicated by serial number, so pushing twice is safe.
+The customer must exist in ServiceTitan — pick them from the typeahead first.
+
 ## Notes
 - Proposals download as PDF named: FacilityName_PMA_Date.pdf
 - The PDF looks exactly like the on-screen preview
