@@ -844,7 +844,7 @@ async function generate() {
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
-      surveyUnits: surveyList.filter(u => u.typeId),
+      surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
     };
 
@@ -1101,8 +1101,55 @@ function applySuggest() {
 // ── Site survey (beta) ────────────────────────────────────────────────────
 let surveyList = [];
 try { surveyList = JSON.parse(localStorage.getItem('aa_survey_v1')) || []; } catch(e) {}
+// Migrate entries saved before system pairing existed
+surveyList.forEach((u, i) => {
+  if (u.sys === undefined) { u.sys = i + 1; u.comp = u.comp || 'complete'; }
+});
 
 function saveSurvey() { localStorage.setItem('aa_survey_v1', JSON.stringify(surveyList)); }
+
+// Split-system components that pair together into one system
+const SPLIT_COMPS = ['condenser', 'coil', 'furnace', 'air_handler'];
+const COMP_LABELS = { complete: 'Complete unit', condenser: 'Condenser', coil: 'Coil', furnace: 'Furnace', air_handler: 'Air Handler' };
+
+function surveyNextSys() { return surveyList.reduce((m, u) => Math.max(m, u.sys || 0), 0) + 1; }
+
+// Auto-pair: a split component joins the most recent system that is made of
+// split components and doesn't already have this component type.
+function assignSystem(u) {
+  if (!SPLIT_COMPS.includes(u.comp)) { u.sys = surveyNextSys(); return false; }
+  const groups = {};
+  surveyList.forEach(x => { (groups[x.sys] = groups[x.sys] || []).push(x); });
+  const sysIds = Object.keys(groups).map(Number).sort((a, b) => b - a); // most recent first
+  for (const sid of sysIds) {
+    const g = groups[sid];
+    const allSplit = g.every(x => SPLIT_COMPS.includes(x.comp));
+    const hasComp  = g.some(x => x.comp === u.comp);
+    if (allSplit && !hasComp && g.length < 4) { u.sys = sid; return true; }
+  }
+  u.sys = surveyNextSys();
+  return false;
+}
+
+// Keep system numbers sequential by first appearance
+function renumberSystems() {
+  const map = {};
+  let next = 1;
+  surveyList.forEach(u => { if (!(u.sys in map)) map[u.sys] = next++; });
+  surveyList.forEach(u => { u.sys = map[u.sys]; });
+}
+
+function surveyGroups() {
+  const groups = {};
+  surveyList.forEach(u => { (groups[u.sys] = groups[u.sys] || []).push(u); });
+  return Object.keys(groups).sort((a, b) => a - b).map(k => groups[k]);
+}
+
+function groupType(g) {
+  const typed = g.find(u => u.typeId);
+  if (typed) return typed.typeId;
+  return g.some(u => SPLIT_COMPS.includes(u.comp)) ? 'split' : '';
+}
 
 function resizeImageToB64(file) {
   return new Promise((resolve, reject) => {
@@ -1138,14 +1185,16 @@ async function surveyPhotoPicked(input) {
     });
     if (resp.status === 503) {
       toast('AI tag reading isn\'t set up yet — unit added for manual entry.', 'info', { duration: 6000 });
-      surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '' });
+      const u = { typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '', comp: 'complete', sys: 0 };
+      assignSystem(u); surveyList.push(u);
     } else if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       toast(err.error || 'Could not read the tag — unit added for manual entry.', 'error', { duration: 6000 });
-      surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: 'low' });
+      const u = { typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: 'low', comp: 'complete', sys: 0 };
+      assignSystem(u); surveyList.push(u);
     } else {
       const r = await resp.json();
-      surveyList.push({
+      const u = {
         typeId: r.equipment_type || '',
         brand:  r.brand  || '',
         model:  r.model  || '',
@@ -1153,8 +1202,15 @@ async function surveyPhotoPicked(input) {
         year:   r.mfg_year || '',
         filter: '',
         conf:   r.confidence || 'medium',
-      });
-      toast('Tag read — check the fields and correct anything that looks off.', 'success');
+        comp:   SPLIT_COMPS.includes(r.component) ? r.component : 'complete',
+        sys:    0,
+      };
+      const paired = assignSystem(u);
+      if (SPLIT_COMPS.includes(u.comp) && !u.typeId) u.typeId = 'split';
+      surveyList.push(u);
+      toast(paired
+        ? COMP_LABELS[u.comp] + ' read — paired with System ' + u.sys + ' as one split system.'
+        : 'Tag read — check the fields and correct anything that looks off.', 'success', { duration: 5000 });
     }
     saveSurvey();
     renderSurvey();
@@ -1166,7 +1222,7 @@ async function surveyPhotoPicked(input) {
 }
 
 function surveyAddManual() {
-  surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '' });
+  surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '', comp: 'complete', sys: surveyNextSys() });
   saveSurvey();
   renderSurvey();
 }
@@ -1175,8 +1231,24 @@ function surveyField(i, field, val) {
   if (surveyList[i]) { surveyList[i][field] = val; saveSurvey(); surveySummary(); }
 }
 
+function surveyCompChange(i, val) {
+  if (!surveyList[i]) return;
+  surveyList[i].comp = val;
+  saveSurvey();
+  renderSurvey();
+}
+
+function surveySysChange(i, val) {
+  if (!surveyList[i]) return;
+  surveyList[i].sys = val === 'new' ? surveyNextSys() : parseInt(val);
+  renumberSystems();
+  saveSurvey();
+  renderSurvey();
+}
+
 function surveyDelete(i) {
   surveyList.splice(i, 1);
+  renumberSystems();
   saveSurvey();
   renderSurvey();
 }
@@ -1190,16 +1262,24 @@ function renderSurvey() {
   const list = document.getElementById('survey-list');
   document.getElementById('survey-empty').style.display = surveyList.length ? 'none' : 'block';
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const sysIds = [...new Set(surveyList.map(u => u.sys))].sort((a, b) => a - b);
+  const sysOptions = (sel) =>
+    sysIds.map(s => `<option value="${s}" ${s===sel?'selected':''}>System ${s}</option>`).join('') +
+    '<option value="new">&#10133; New system</option>';
+  const compOptions = (sel) =>
+    Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join('');
   list.innerHTML = surveyList.map((u, i) => `
     <div class="survey-card">
       <div class="survey-card-top">
-        <span class="survey-card-num">Unit ${i + 1}</span>
+        <span class="survey-card-num">System ${u.sys} &middot; ${COMP_LABELS[u.comp] || 'Unit'}</span>
         <span>
           ${u.conf ? `<span class="survey-conf ${u.conf}">${u.conf}</span>` : ''}
           <button class="survey-del" onclick="surveyDelete(${i})" title="Remove">&#10005;</button>
         </span>
       </div>
       <div class="survey-grid">
+        <select onchange="surveySysChange(${i},this.value)" title="Which system this tag belongs to">${sysOptions(u.sys)}</select>
+        <select onchange="surveyCompChange(${i},this.value)" title="What this tag is">${compOptions(u.comp)}</select>
         <select class="full" onchange="surveyField(${i},'typeId',this.value)">${surveyTypeOptions(u.typeId)}</select>
         <input placeholder="Brand" value="${esc(u.brand)}" oninput="surveyField(${i},'brand',this.value)">
         <input placeholder="Model #" value="${esc(u.model)}" oninput="surveyField(${i},'model',this.value)">
@@ -1211,38 +1291,45 @@ function renderSurvey() {
   surveySummary();
 }
 
+// System age = oldest component (original install usually survives partial replacements)
+function groupAge(g) {
+  const years = g.map(u => parseInt(u.year)).filter(y => y > 1970);
+  if (!years.length) return null;
+  return new Date().getFullYear() - Math.min(...years);
+}
+
 function surveySummary() {
   const box = document.getElementById('survey-summary');
-  const typed = surveyList.filter(u => u.typeId);
-  const years = surveyList.map(u => parseInt(u.year)).filter(y => y > 1970);
-  const nowY = new Date().getFullYear();
-  const avgAge = years.length ? (years.reduce((s,y) => s + (nowY - y), 0) / years.length) : null;
+  const groups = surveyGroups();
+  const typedGroups = groups.filter(g => groupType(g));
+  const ages = groups.map(groupAge).filter(a => a !== null);
+  const avgAge = ages.length ? ages.reduce((s, a) => s + a, 0) / ages.length : null;
   if (surveyList.length === 0) { box.style.display = 'none'; }
   else {
     box.style.display = 'block';
-    box.innerHTML = `<strong>${surveyList.length}</strong> unit${surveyList.length!==1?'s':''} surveyed · ` +
-      `<strong>${typed.length}</strong> with type assigned` +
+    box.innerHTML = `<strong>${surveyList.length}</strong> tag${surveyList.length!==1?'s':''} scanned · ` +
+      `<strong>${groups.length}</strong> system${groups.length!==1?'s':''}` +
+      ` · <strong>${typedGroups.length}</strong> typed` +
       (avgAge !== null ? ` · avg age <strong>${avgAge.toFixed(1)} yrs</strong>` : '');
   }
-  document.getElementById('survey-apply').disabled = typed.length === 0;
+  document.getElementById('survey-apply').disabled = typedGroups.length === 0;
 }
 
 function surveyApply() {
-  const typed = surveyList.filter(u => u.typeId);
-  if (typed.length === 0) return;
-  // Counts per equipment type → cards
+  const groups = surveyGroups().filter(g => groupType(g));
+  if (groups.length === 0) return;
+  // One count per SYSTEM, not per tag
   const counts = {};
-  typed.forEach(u => { counts[u.typeId] = (counts[u.typeId] || 0) + 1; });
+  groups.forEach(g => { const t = groupType(g); counts[t] = (counts[t] || 0) + 1; });
   EQ_DATA.forEach(e => {
     const n = counts[e.id];
     state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
   });
   buildGrid();
-  // Auto age tier from average age
-  const years = typed.map(u => parseInt(u.year)).filter(y => y > 1970);
-  if (years.length) {
-    const nowY = new Date().getFullYear();
-    const avgAge = years.reduce((s,y) => s + (nowY - y), 0) / years.length;
+  // Auto age tier from average system age
+  const ages = groups.map(groupAge).filter(a => a !== null);
+  if (ages.length) {
+    const avgAge = ages.reduce((s, a) => s + a, 0) / ages.length;
     const disc = avgAge < 3 ? '0' : avgAge < 7 ? '0.05' : avgAge < 12 ? '0.10' : '0.20';
     document.querySelectorAll('#calc-age-pills .age-pill').forEach(p => {
       p.classList.toggle('active', p.dataset.disc === disc);
@@ -1252,8 +1339,30 @@ function surveyApply() {
   refresh();
   switchTab('new');
   if (!document.getElementById('calc-body').classList.contains('open')) toggleCalc();
-  toast('Survey applied — ' + typed.length + ' unit' + (typed.length!==1?'s':'') + ' on the proposal' +
-    (years.length ? ', age tier set automatically.' : '.'), 'success', { duration: 6000 });
+  toast('Survey applied — ' + groups.length + ' system' + (groups.length!==1?'s':'') + ' on the proposal' +
+    (ages.length ? ', age tier set automatically.' : '.'), 'success', { duration: 6000 });
+}
+
+// One PDF schedule entry per system; multi-component systems get a combined detail line
+function surveyPayloadUnits() {
+  return surveyGroups().map(g => {
+    const t = groupType(g);
+    if (!t) return null;
+    if (g.length === 1) {
+      const u = g[0];
+      return { typeId: t, brand: u.brand, model: u.model, serial: u.serial, year: u.year, filter: u.filter };
+    }
+    const detail = g.map(u => {
+      const bits = [
+        [u.brand, u.model].filter(Boolean).join(' '),
+        u.serial ? 'S/N ' + u.serial : '',
+        u.year ? String(u.year) : '',
+      ].filter(Boolean).join(' ');
+      return (COMP_LABELS[u.comp] || 'Component') + ': ' + (bits || '—');
+    }).join(' | ');
+    const f = g.find(u => u.filter);
+    return { typeId: t, detail: detail + (f ? ' | Filter ' + f.filter : '') };
+  }).filter(Boolean);
 }
 
 function surveyClear() {
@@ -1583,7 +1692,7 @@ async function sendDocuSign() {
           salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
           date: fmtDate(), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
           equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
-          surveyUnits: surveyList.filter(u => u.typeId),
+          surveyUnits: surveyPayloadUnits(),
           customerName, customerEmail,
         }),
       });

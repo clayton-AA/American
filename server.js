@@ -331,10 +331,15 @@ Extract the following and respond with ONLY a JSON object, no other text:
   "model": string|null,           // model number exactly as printed
   "serial": string|null,          // serial number exactly as printed
   "equipment_type": string|null,  // best guess, one of: rtu, split, mini, vrf, vav, reznor, mau, exhaust, boiler, erv
+  "component": string,            // "complete" if this is a self-contained system (RTU, boiler, unit heater, MAU, ERV, mini-split outdoor unit);
+                                  // otherwise the part of a split system this tag belongs to: "condenser", "coil", "furnace", "air_handler"
   "tonnage": number|null,         // cooling capacity in tons if determinable (12000 BTU = 1 ton)
   "mfg_year": number|null,        // 4-digit manufacture year
   "confidence": "high"|"medium"|"low"
 }
+Component hints: outdoor condensing units (e.g. Carrier 24/38-series, Trane 4TTR) = "condenser";
+evaporator/cased coils (ADP, Aspen, Carrier CNP) = "coil"; gas furnaces (59-series, S9X, TUD) = "furnace";
+fan coils / air handlers (FB4C, TEM6) = "air_handler". A condenser + coil + furnace together form ONE split system.
 For mfg_year: use a printed date if present; otherwise attempt to decode the serial number using
 manufacturer conventions (Carrier/Bryant/Payne: digits 3-4 are year; Trane: leading digit/letter year codes;
 Lennox: digits 3-4 of serial are year; York: letter year codes; Rheem/Ruud: positions 5-8 are week+year;
@@ -572,7 +577,7 @@ function buildHTML(data) {
       <td>${eq.name}</td><td>${e.qty}</td><td></td>
     </tr>`;
     units.forEach((u, j) => {
-      const detail = [
+      const detail = u.detail || [
         [u.brand, u.model].filter(Boolean).join(' '),
         u.serial ? 'S/N ' + u.serial : '',
         u.year ? 'Mfg ' + u.year : '',
