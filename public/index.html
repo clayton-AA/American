@@ -905,6 +905,7 @@ async function stPick(i) {
   document.getElementById('inp-facility').classList.remove('invalid');
   if (c.address) document.getElementById('inp-address').value = c.address;
   refresh();
+  stLoadEquipment(c.id); // runs in parallel with the detail fetch below
   // Pull location + contact details in the background
   try {
     const resp = await fetch('/st-customer/' + c.id, { headers: stHeaders() });
@@ -926,6 +927,39 @@ async function stPick(i) {
     document.getElementById('st-loaded-tag').style.display = 'block';
     refresh();
   } catch(e) { /* manual entry still works */ }
+}
+
+// Auto-select equipment cards from ServiceTitan installed-equipment records
+async function stLoadEquipment(customerId) {
+  try {
+    const resp = await fetch('/st-equipment/' + customerId, { headers: stHeaders() });
+    if (!resp.ok) return;
+    const eq = await resp.json();
+    const ids = Object.keys(eq.counts || {});
+    if (ids.length === 0) {
+      if (eq.totalUnits === 0) {
+        toast('No equipment on file in ServiceTitan for this customer — select manually.');
+      } else if (eq.unmatched && eq.unmatched.length) {
+        toast(eq.totalUnits + ' unit(s) in ServiceTitan but none matched the card types — select manually. (' +
+          eq.unmatched.slice(0, 3).join(', ') + (eq.unmatched.length > 3 ? '…' : '') + ')', 'info', { duration: 8000 });
+      }
+      return;
+    }
+    EQ_DATA.forEach(e => {
+      const n = eq.counts[e.id];
+      state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
+    });
+    buildGrid();
+    refresh();
+    const total = ids.reduce((s, k) => s + eq.counts[k], 0);
+    let msg = 'Loaded ' + total + ' unit' + (total !== 1 ? 's' : '') + ' across ' + ids.length +
+      ' equipment type' + (ids.length !== 1 ? 's' : '') + ' from ServiceTitan — adjust as needed.';
+    if (eq.unmatched && eq.unmatched.length) {
+      msg += ' ' + eq.unmatched.length + ' unit(s) unmatched: ' +
+        eq.unmatched.slice(0, 3).join(', ') + (eq.unmatched.length > 3 ? '…' : '');
+    }
+    toast(msg, 'success', { duration: 8000 });
+  } catch(e) { /* manual selection still works */ }
 }
 
 // Close dropdown on outside click

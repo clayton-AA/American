@@ -262,6 +262,64 @@ app.get('/st-customer/:id', async (req, res) => {
   }
 });
 
+// Paginate through ServiceTitan's {data, hasMore} shape (max 10 pages × 200).
+async function stFetchAllPages(pathAfterV2, query) {
+  let page = 1;
+  const all = [];
+  while (page <= 10) {
+    const data = await stFetch(pathAfterV2, { ...(query || {}), page, pageSize: 200 });
+    const rows = (data && data.data) || [];
+    all.push(...rows);
+    if (!data || data.hasMore === false || rows.length < 200) break;
+    page += 1;
+  }
+  return all;
+}
+
+// Map ServiceTitan equipment type/name/model text onto the app's equipment card ids.
+// Order matters: specific patterns before generic ones ("mini split" before "split").
+const EQ_MATCHERS = [
+  ['mini',    /mini[\s-]?split|ductless/i],
+  ['vrf',     /\bvrf\b|\bvrv\b/i],
+  ['vav',     /\bvav\b/i],
+  ['erv',     /\berv\b|\bhrv\b|energy recovery|heat recovery/i],
+  ['mau',     /make[\s-]?up\s?air|\bmau\b/i],
+  ['boiler',  /boiler/i],
+  ['reznor',  /unit heater|reznor|infrared|radiant/i],
+  ['exhaust', /exhaust|supply fan|ventilat/i],
+  ['rtu',     /\brtu\b|roof[\s-]?top|packaged?\s?unit/i],
+  ['split',   /split|condens|air handler|\bahu\b|heat pump|furnace/i],
+];
+
+// Installed equipment for one customer, grouped by app equipment card.
+app.get('/st-equipment/:id', async (req, res) => {
+  if (req.headers['x-site-password'] !== (process.env.SITE_PASSWORD || 'americanair'))
+    return res.status(401).json({ error: 'Unauthorized' });
+  if (!stConfigured()) return res.status(503).json({ error: 'ServiceTitan not configured' });
+  const id = String(req.params.id).replace(/\D/g, '');
+  if (!id) return res.status(400).json({ error: 'Bad id' });
+  try {
+    const locations = await stFetchAllPages('/crm/v2/locations', { customerId: id, active: 'True' });
+    if (locations.length === 0) return res.json({ counts: {}, unmatched: [], totalUnits: 0 });
+    const locationIdsCsv = locations.map(l => l.id).join(',');
+    const equipment = await stFetchAllPages('/equipmentsystems/v2/installed-equipment', {
+      locationIds: locationIdsCsv, active: 'True',
+    });
+    const counts = {};
+    const unmatched = [];
+    for (const r of equipment) {
+      const label = [(r.type && r.type.name) || '', r.name || '', r.model || ''].join(' ');
+      const hit = EQ_MATCHERS.find(([, re]) => re.test(label));
+      if (hit) counts[hit[0]] = (counts[hit[0]] || 0) + 1;
+      else unmatched.push((r.type && r.type.name) || r.name || r.model || 'Unknown unit');
+    }
+    res.json({ counts, unmatched, totalUnits: equipment.length });
+  } catch (e) {
+    console.error('ST equipment error:', e.message);
+    res.status(502).json({ error: 'ServiceTitan equipment lookup failed' });
+  }
+});
+
 // ── Password protection ───────────────────────────────────────────────────
 const SITE_PASSWORD = process.env.SITE_PASSWORD || 'americanair';
 
