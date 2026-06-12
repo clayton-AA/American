@@ -563,6 +563,8 @@
       <div class="survey-empty" id="survey-empty">No units surveyed yet.<br>Snap a photo of an equipment data tag and the model, serial, and age will be read automatically.</div>
       <div class="survey-summary" id="survey-summary" style="display:none;"></div>
       <button class="survey-apply" id="survey-apply" onclick="surveyApply()" disabled>Apply Survey to Proposal</button>
+      <button class="survey-apply" id="shield-btn" onclick="generateShield()" style="margin-top:8px;background:#5E35B1;" disabled>&#128737; Generate S.H.I.E.L.D. Report</button>
+      <div class="calc-note" id="shield-note"></div>
       <button class="survey-clear" onclick="surveyClear()">Clear survey</button>
 
       <div class="section-title" style="margin-top:16px;">ServiceTitan</div>
@@ -1382,11 +1384,88 @@ function surveyClear() {
   });
 }
 
+// ── S.H.I.E.L.D. report ───────────────────────────────────────────────────
+// Units for the report: survey systems if any, else ServiceTitan equipment
+function shieldUnits() {
+  if (surveyList.length) {
+    return surveyGroups().map(g => {
+      const t = groupType(g);
+      const typeName = (EQ_DATA.find(e => e.id === t) || {}).name || 'HVAC System';
+      const primary = g.find(u => u.comp === 'condenser') || g[0];
+      const years = g.map(u => parseInt(u.year)).filter(y => y > 1950);
+      return {
+        typeId: t || null,
+        label: typeName + (g.length > 1 ? ' (System ' + g[0].sys + ')' : ''),
+        brand: primary.brand, model: primary.model, serial: primary.serial,
+        year: years.length ? Math.min(...years) : null,
+        location: '',
+      };
+    });
+  }
+  return window._stUnits || [];
+}
+
+function updateShieldUI() {
+  const btn = document.getElementById('shield-btn');
+  const note = document.getElementById('shield-note');
+  if (!btn) return;
+  const n = shieldUnits().length;
+  btn.disabled = n === 0;
+  note.textContent = n === 0
+    ? 'Survey equipment above, or pick a ServiceTitan customer on the New Proposal tab, to enable.'
+    : 'Equipment health & 5-year replacement forecast PDF from ' +
+      (surveyList.length ? 'this survey (' + n + ' system' + (n!==1?'s':'') + ').'
+                         : 'ServiceTitan records (' + n + ' unit' + (n!==1?'s':'') + ').');
+}
+
+async function generateShield() {
+  const units = shieldUnits();
+  if (!units.length) return;
+  const facility = gv('inp-facility');
+  if (!facility) {
+    toast('Enter the facility name on the New Proposal tab first.', 'error');
+    switchTab('new');
+    document.getElementById('inp-facility').focus();
+    return;
+  }
+  const btn = document.getElementById('shield-btn');
+  btn.disabled = true; btn.textContent = 'Building report...';
+  try {
+    const resp = await fetch('/shield-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+      body: JSON.stringify({
+        facility, address: gv('inp-address'), contact: gv('inp-contact'), date: fmtDate(),
+        salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
+        units,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + resp.status);
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = facility.replace(/[^a-z0-9]/gi, '_') + '_SHIELD_Report.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('S.H.I.E.L.D. report downloaded.', 'success');
+  } catch(e) {
+    toast('Report error: ' + e.message, 'error', { duration: 8000 });
+  } finally {
+    btn.textContent = '🛡 Generate S.H.I.E.L.D. Report';
+    updateShieldUI();
+  }
+}
+
 // ── Push surveyed equipment into ServiceTitan ─────────────────────────────
 function updateSurveyPushUI() {
   const btn  = document.getElementById('survey-push');
   const note = document.getElementById('survey-push-note');
   const sel  = document.getElementById('survey-st-loc');
+  updateShieldUI();
   if (!btn) return;
   if (!stSelectedCustomerId) {
     btn.disabled = true;
@@ -1563,6 +1642,8 @@ async function stLoadEquipment(customerId) {
     const resp = await fetch('/st-equipment/' + customerId, { headers: stHeaders() });
     if (!resp.ok) return;
     const eq = await resp.json();
+    window._stUnits = eq.units || [];   // dated units, used for SHIELD reports
+    updateSurveyPushUI();
     const ids = Object.keys(eq.counts || {});
     if (ids.length === 0) {
       if (eq.totalUnits === 0) {

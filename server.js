@@ -305,15 +305,29 @@ app.get('/st-equipment/:id', async (req, res) => {
     const equipment = await stFetchAllPages('/equipmentsystems/v2/installed-equipment', {
       locationIds: locationIdsCsv, active: 'True',
     });
+    const locName = new Map(locations.map(l => [l.id, l.name || (l.address && l.address.street) || ('Location ' + l.id)]));
     const counts = {};
     const unmatched = [];
+    const units = [];
     for (const r of equipment) {
       const label = [(r.type && r.type.name) || '', r.name || '', r.model || ''].join(' ');
       const hit = EQ_MATCHERS.find(([, re]) => re.test(label));
       if (hit) counts[hit[0]] = (counts[hit[0]] || 0) + 1;
       else unmatched.push((r.type && r.type.name) || r.name || r.model || 'Unknown unit');
+      let year = null;
+      const dateStr = r.installedOn || r.manufacturedOn || null;
+      if (dateStr) { const y = new Date(dateStr).getFullYear(); if (y > 1950) year = y; }
+      units.push({
+        typeId: hit ? hit[0] : null,
+        label: r.name || (r.type && r.type.name) || 'Unit',
+        brand: r.manufacturer || r.brand || '',
+        model: r.model || '',
+        serial: r.serialNumber || r.serial || '',
+        year,
+        location: locName.get(r.locationId) || '',
+      });
     }
-    res.json({ counts, unmatched, totalUnits: equipment.length });
+    res.json({ counts, unmatched, totalUnits: equipment.length, units });
   } catch (e) {
     console.error('ST equipment error:', e.message);
     res.status(502).json({ error: 'ServiceTitan equipment lookup failed' });
@@ -1023,6 +1037,197 @@ ${tcHTML}
 </body>
 </html>`;
 }
+
+// ── S.H.I.E.L.D. Report (System Health Inspection & Equipment Lifecycle Diagnostic) ──
+// Lifespans per the equipment-health-report methodology (light-commercial HVAC)
+const SHIELD_LIFESPANS = { rtu: 15, split: 15, mini: 15, vrf: 15, vav: 15, reznor: 18, mau: 18, exhaust: 15, boiler: 25, erv: 15 };
+const SHIELD_STATUS = {
+  good:    { label: 'Good',                   color: '#2e7d32', bg: '#e8f5e9' },
+  monitor: { label: 'Monitor',                color: '#e65100', bg: '#fff8e1' },
+  plan:    { label: 'Plan Replacement',       color: '#ef6c00', bg: '#ffe0b2' },
+  eol:     { label: 'End of Life',            color: '#c62828', bg: '#fce4ec' },
+  assess:  { label: 'Site Assessment Needed', color: '#5E35B1', bg: '#ede7f6' },
+};
+
+function shieldClassify(u, nowYear) {
+  const lifespan = SHIELD_LIFESPANS[u.typeId] || 15;
+  if (!u.year || u.year < 1950) return { status: 'assess', lifespan, age: null, pct: null, replaceYear: null };
+  const age = nowYear - u.year;
+  const pct = age / lifespan;
+  const status = pct >= 1 ? 'eol' : pct >= 0.75 ? 'plan' : pct >= 0.5 ? 'monitor' : 'good';
+  return { status, lifespan, age, pct, replaceYear: u.year + lifespan };
+}
+
+function buildShieldHTML(d) {
+  const nowYear = new Date().getFullYear();
+  const units = (d.units || []).map(u => ({ ...u, ...shieldClassify(u, nowYear) }));
+  const dated  = units.filter(u => u.age !== null);
+  const counts = { good: 0, monitor: 0, plan: 0, eol: 0, assess: 0 };
+  units.forEach(u => counts[u.status]++);
+  const oldest = dated.length ? Math.max(...dated.map(u => u.age)) : null;
+
+  // Donut chart (SVG stroke segments)
+  const order = ['eol', 'plan', 'monitor', 'good', 'assess'];
+  const total = units.length || 1;
+  const C = 2 * Math.PI * 54;
+  let offset = 0;
+  const donutSegs = order.filter(s => counts[s] > 0).map(s => {
+    const frac = counts[s] / total;
+    const seg = `<circle cx="70" cy="70" r="54" fill="none" stroke="${SHIELD_STATUS[s].color}" stroke-width="22"
+      stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-offset * C).toFixed(2)}"
+      transform="rotate(-90 70 70)"/>`;
+    offset += frac;
+    return seg;
+  }).join('');
+  const legend = order.filter(s => counts[s] > 0).map(s =>
+    `<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#444;margin-bottom:4px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${SHIELD_STATUS[s].color};display:inline-block;"></span>
+      ${SHIELD_STATUS[s].label} — <strong>${counts[s]}</strong></div>`).join('');
+
+  // Headline
+  const headline = counts.eol > 0
+    ? `${counts.eol} of ${units.length} systems ${counts.eol === 1 ? 'is' : 'are'} at or past end of design life — replacement planning should begin now.`
+    : counts.plan > 0
+    ? `${counts.plan} of ${units.length} systems ${counts.plan === 1 ? 'is' : 'are'} in the final quarter of design life — budget planning is recommended.`
+    : `The equipment fleet is in serviceable condition — preventative maintenance will protect the remaining life.`;
+
+  // Equipment rows with lifespan bars
+  const rows = units
+    .sort((a, b) => (b.pct || 0) - (a.pct || 0))
+    .map((u, i) => {
+      const st = SHIELD_STATUS[u.status];
+      const pctTxt = u.pct !== null ? Math.round(u.pct * 100) + '%' : '—';
+      const barW = u.pct !== null ? Math.min(100, Math.round(u.pct * 100)) : 0;
+      const bar = u.pct !== null
+        ? `<div style="background:#eee;border-radius:4px;height:10px;width:100%;overflow:hidden;">
+             <div style="background:${st.color};height:10px;width:${barW}%;"></div></div>
+           <div style="font-size:8.5px;color:${st.color};font-weight:500;margin-top:1px;">${pctTxt} of design life</div>`
+        : `<div style="font-size:9px;color:${st.color};">Serial/date unverified</div>`;
+      return `<tr style="${i % 2 ? 'background:#fafbfd;' : ''}">
+        <td>${u.label || 'Unit'}${u.location ? `<div style="font-size:8.5px;color:#999;">${u.location}</div>` : ''}</td>
+        <td>${[u.brand, u.model].filter(Boolean).join(' ') || '—'}<div style="font-size:8.5px;color:#999;">${u.serial ? 'S/N ' + u.serial : ''}</div></td>
+        <td style="text-align:center;">${u.year || '—'}</td>
+        <td style="text-align:center;">${u.age !== null ? u.age + ' yrs' : '—'}</td>
+        <td style="width:24%;">${bar}</td>
+        <td><span style="background:${st.bg};color:${st.color};padding:2px 8px;border-radius:8px;font-size:9px;font-weight:500;white-space:nowrap;">${st.label}</span></td>
+      </tr>`;
+    }).join('');
+
+  // 5-year replacement forecast
+  const horizon = [];
+  for (let y = nowYear; y <= nowYear + 5; y++) {
+    const list = y === nowYear ? dated.filter(u => u.replaceYear <= nowYear) : dated.filter(u => u.replaceYear === y);
+    if (list.length) horizon.push({ year: y === nowYear ? nowYear + ' (now)' : String(y), list });
+  }
+  const forecastRows = horizon.map(h => `<tr>
+      <td style="font-weight:500;color:#1B3A6B;white-space:nowrap;">${h.year}</td>
+      <td style="text-align:center;font-weight:500;">${h.list.length}</td>
+      <td>${h.list.map(u => (u.label || 'Unit') + (u.location ? ' (' + u.location + ')' : '')).join(' · ')}</td>
+    </tr>`).join('');
+
+  const assessList = units.filter(u => u.status === 'assess');
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', Arial, sans-serif; font-size: 11px; color: #333; }
+  .page-break { page-break-before: always; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 7px 9px; font-size: 10px; border-bottom: 1px solid #eee; vertical-align: middle; text-align: left; }
+  thead th { background: #1B3A6B; color: white; font-weight: 500; font-size: 9.5px; letter-spacing: 0.5px; }
+  .section-label { font-size: 9px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase;
+    color: #1B3A6B; border-bottom: 2px solid #1B3A6B; padding-bottom: 5px; margin: 18px 0 10px; }
+  </style></head><body>
+
+  <!-- Cover -->
+  <div style="text-align:center;padding-top:30px;">
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:64px;">
+    <div style="font-family:'Playfair Display',serif;font-size:34px;color:#1B3A6B;margin-top:24px;letter-spacing:2px;">S.H.I.E.L.D. Report</div>
+    <div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:4px;">System Health Inspection &amp; Equipment Lifecycle Diagnostic</div>
+    <div style="width:60px;height:3px;background:#1B3A6B;margin:18px auto;"></div>
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">Prepared for</div>
+    <div style="font-family:'Playfair Display',serif;font-size:22px;color:#222;margin-top:4px;">${d.facility || ''}</div>
+    ${d.address ? `<div style="font-size:11px;color:#666;margin-top:3px;">${d.address}</div>` : ''}
+    <div style="font-size:12px;color:#444;max-width:520px;margin:20px auto 0;line-height:1.6;font-weight:500;">${headline}</div>
+  </div>
+
+  <div style="display:flex;justify-content:center;gap:14px;margin-top:26px;">
+    ${[['Systems audited', units.length], ['Past end of life', counts.eol], ['Plan replacement', counts.plan], ['Oldest asset', oldest !== null ? oldest + ' yrs' : '—']]
+      .map(([l, v]) => `<div style="border:1px solid #ddd;border-radius:8px;padding:14px 18px;text-align:center;min-width:110px;">
+        <div style="font-size:24px;font-weight:700;color:#1B3A6B;">${v}</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#888;margin-top:4px;">${l}</div></div>`).join('')}
+  </div>
+
+  <div style="display:flex;justify-content:center;align-items:center;gap:30px;margin-top:26px;">
+    <svg width="140" height="140" viewBox="0 0 140 140">${donutSegs}
+      <text x="70" y="66" text-anchor="middle" font-size="22" font-weight="700" fill="#1B3A6B" font-family="DM Sans, Arial">${units.length}</text>
+      <text x="70" y="82" text-anchor="middle" font-size="8" fill="#888" font-family="DM Sans, Arial">SYSTEMS</text></svg>
+    <div>${legend}</div>
+  </div>
+
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#1B3A6B;padding:14px 30px;display:flex;justify-content:space-between;font-size:9.5px;color:#AABCDD;">
+    <span>Prepared for: <strong style="color:white;">${d.facility || ''}</strong></span>
+    <span>Prepared by: <strong style="color:white;">American Air, Inc.${d.salesName ? ' — ' + d.salesName : ''}</strong></span>
+    <span>${d.date || ''}</span>
+  </div>
+
+  <!-- Equipment detail -->
+  <div class="page-break"></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:14px 0 10px;border-bottom:3px solid #1B3A6B;">
+    <img src="data:image/png;base64,${LOGO_B64}" style="height:40px;">
+    <div style="text-align:right;font-size:10px;color:#666;line-height:1.8;">
+      ${d.facility || ''}<br>S.H.I.E.L.D. Report &middot; ${d.date || ''}</div>
+  </div>
+
+  <div class="section-label">Equipment Lifecycle Status</div>
+  <table>
+    <thead><tr><th>Equipment</th><th>Make / Model</th><th style="text-align:center;">Year</th><th style="text-align:center;">Age</th><th>Design Life Consumed</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  ${forecastRows ? `<div class="section-label">5-Year Replacement Forecast</div>
+  <table>
+    <thead><tr><th style="width:14%;">Budget Year</th><th style="width:10%;text-align:center;">Systems</th><th>Equipment Due</th></tr></thead>
+    <tbody>${forecastRows}</tbody>
+  </table>
+  <p style="font-size:9px;color:#888;margin-top:6px;font-style:italic;">Replacement year = manufacture/install year + industry-standard design life. Well-maintained equipment routinely exceeds design life; this forecast is a budgeting guide, not a guarantee of failure.</p>` : ''}
+
+  ${assessList.length ? `<div class="section-label" style="border-color:#5E35B1;color:#5E35B1;">Site Assessment Needed</div>
+  <p style="font-size:10px;color:#555;margin-bottom:6px;">${assessList.length} unit${assessList.length !== 1 ? 's' : ''} could not be dated from records or serial numbers. We recommend a walkthrough to verify:</p>
+  ${assessList.map(u => `<div style="font-size:10px;color:#555;padding:5px 10px;background:#ede7f6;border-radius:4px;margin-bottom:4px;">${u.label}${u.location ? ' — ' + u.location : ''} ${[u.brand, u.model].filter(Boolean).join(' ')}</div>`).join('')}` : ''}
+
+  <div style="margin-top:20px;background:#E8EEF7;border-radius:8px;padding:14px 18px;">
+    <div style="font-weight:500;color:#1B3A6B;font-size:11px;margin-bottom:5px;">Protecting the remaining life of this fleet</div>
+    <div style="font-size:10px;color:#444;line-height:1.6;">Scheduled preventative maintenance is the single largest factor in whether equipment reaches — or exceeds — its design life.
+    American Air's Preventative Maintenance Agreement includes the inspections, cleaning, and adjustments that protect these systems, plus capital-expenditure planning support so replacements land on your budget, not as emergencies.
+    ${d.salesName ? `Contact ${d.salesName}${d.salesPhone ? ' at ' + d.salesPhone : ''}${d.salesEmail ? ' or ' + d.salesEmail : ''} to discuss.` : ''}</div>
+  </div>
+
+  </body></html>`;
+}
+
+app.post('/shield-report', async (req, res) => {
+  try {
+    const pw = req.headers['x-site-password'];
+    if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error: 'Unauthorized' });
+    const data = req.body || {};
+    if (!Array.isArray(data.units) || data.units.length === 0)
+      return res.status(400).json({ error: 'No equipment to report on' });
+    const html = buildShieldHTML(data);
+    const browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdf = await page.pdf({ format: 'Letter', printBackground: true, margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' } });
+    await browser.close();
+    const filename = `${(data.facility || 'Customer').replace(/[^a-z0-9]/gi, '_')}_SHIELD_Report.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(pdf);
+  } catch (err) {
+    console.error('SHIELD report error:', err);
+    if (!res.headersSent) res.status(500).json({ error: err.message || String(err) });
+  }
+});
 
 app.post('/generate', async (req, res) => {
   try {
