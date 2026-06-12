@@ -169,6 +169,99 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
   return resp.body.envelopeId;
 }
 
+// ── ServiceTitan customer lookup ──────────────────────────────────────────
+// OAuth2 client-credentials; token cached in memory (~15 min lifetime).
+// Same pattern as the servicetitan-mcp repo. Requires env vars:
+//   ST_TENANT_ID, ST_APP_KEY, ST_CLIENT_ID, ST_CLIENT_SECRET
+const ST_AUTH_URL = process.env.ST_AUTH_URL || 'https://auth.servicetitan.io/connect/token';
+const ST_API_BASE = process.env.ST_API_BASE || 'https://api.servicetitan.io';
+
+const stConfigured = () =>
+  !!(process.env.ST_TENANT_ID && process.env.ST_APP_KEY && process.env.ST_CLIENT_ID && process.env.ST_CLIENT_SECRET);
+
+let stToken = null, stTokenExpiresAt = 0;
+async function getSTToken() {
+  const now = Date.now();
+  if (stToken && now < stTokenExpiresAt - 30000) return stToken;
+  const params = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: process.env.ST_CLIENT_ID,
+    client_secret: process.env.ST_CLIENT_SECRET,
+  });
+  const resp = await fetch(ST_AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.access_token) throw new Error('ServiceTitan OAuth failed (' + resp.status + ')');
+  stToken = data.access_token;
+  stTokenExpiresAt = now + (Number(data.expires_in || 900) * 1000);
+  return stToken;
+}
+
+async function stFetch(pathAfterV2, query) {
+  // pathAfterV2 e.g. '/crm/v2/customers' — tenant id is spliced in after /v2
+  const p = pathAfterV2.replace(/^(\/[^/]+\/v\d+)/, '$1/tenant/' + process.env.ST_TENANT_ID);
+  const url = new URL(ST_API_BASE + p);
+  for (const [k, v] of Object.entries(query || {})) {
+    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
+  }
+  let token = await getSTToken();
+  let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token, 'ST-App-Key': process.env.ST_APP_KEY, Accept: 'application/json' } });
+  if (resp.status === 401) { // one-shot retry on stale token
+    stToken = null;
+    token = await getSTToken();
+    resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token, 'ST-App-Key': process.env.ST_APP_KEY, Accept: 'application/json' } });
+  }
+  if (!resp.ok) throw new Error('ST GET ' + pathAfterV2 + ' → ' + resp.status);
+  return resp.json();
+}
+
+const fmtSTAddress = (a) => a ? [a.street, a.city, a.state, a.zip].filter(Boolean).join(', ') : '';
+
+// Search customers by name (typeahead). Commercial sorted first.
+app.get('/st-customers', async (req, res) => {
+  if (req.headers['x-site-password'] !== (process.env.SITE_PASSWORD || 'americanair'))
+    return res.status(401).json({ error: 'Unauthorized' });
+  if (!stConfigured()) return res.status(503).json({ error: 'ServiceTitan not configured' });
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json([]);
+  try {
+    const data = await stFetch('/crm/v2/customers', { name: q, active: 'True', pageSize: 15 });
+    const rows = (data.data || [])
+      .sort((a, b) => (a.type === 'Commercial' ? -1 : 1) - (b.type === 'Commercial' ? -1 : 1))
+      .map(c => ({ id: c.id, name: c.name, type: c.type, address: fmtSTAddress(c.address) }));
+    res.json(rows);
+  } catch (e) {
+    console.error('ST search error:', e.message);
+    res.status(502).json({ error: 'ServiceTitan search failed' });
+  }
+});
+
+// Details for one customer: primary location address + contacts.
+app.get('/st-customer/:id', async (req, res) => {
+  if (req.headers['x-site-password'] !== (process.env.SITE_PASSWORD || 'americanair'))
+    return res.status(401).json({ error: 'Unauthorized' });
+  if (!stConfigured()) return res.status(503).json({ error: 'ServiceTitan not configured' });
+  const id = String(req.params.id).replace(/\D/g, '');
+  if (!id) return res.status(400).json({ error: 'Bad id' });
+  try {
+    const [locData, contactData] = await Promise.all([
+      stFetch('/crm/v2/locations', { customerId: id, active: 'True', pageSize: 50 }),
+      stFetch('/crm/v2/customers/' + id + '/contacts', { pageSize: 50 }).catch(() => ({ data: [] })),
+    ]);
+    const locations = (locData.data || []).map(l => ({ id: l.id, name: l.name || '', address: fmtSTAddress(l.address) }));
+    const contacts = (contactData.data || []).map(c => ({
+      name: c.name || '', type: c.type || '', value: c.value || '', memo: c.memo || '',
+    }));
+    res.json({ locations, contacts });
+  } catch (e) {
+    console.error('ST detail error:', e.message);
+    res.status(502).json({ error: 'ServiceTitan lookup failed' });
+  }
+});
+
 // ── Password protection ───────────────────────────────────────────────────
 const SITE_PASSWORD = process.env.SITE_PASSWORD || 'americanair';
 

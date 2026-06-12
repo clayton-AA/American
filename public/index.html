@@ -284,6 +284,23 @@
     .topbar-sub { display: none; }
   }
 
+  /* ── ServiceTitan typeahead ── */
+  .st-wrap { position: relative; }
+  .st-dd { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--mid-blue);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm); box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    max-height: 260px; overflow-y: auto; z-index: 500; display: none; }
+  .st-dd.open { display: block; }
+  .st-dd-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #f0f3f8; }
+  .st-dd-item:last-child { border-bottom: none; }
+  .st-dd-item:hover, .st-dd-item.hl { background: var(--light-blue); }
+  .st-dd-name { font-size: 13px; font-weight: 500; color: var(--gray); display: flex; align-items: center; gap: 8px; }
+  .st-dd-badge { font-size: 9px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
+    background: var(--light-blue); color: var(--blue); padding: 1px 7px; border-radius: 8px; }
+  .st-dd-badge.res { background: #f5f5f5; color: #888; }
+  .st-dd-addr { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .st-dd-status { padding: 10px 12px; font-size: 12px; color: var(--muted); }
+  .st-loaded-tag { font-size: 10px; color: #2e7d32; margin-top: 3px; display: none; }
+
   /* ── Toasts & validation ── */
   .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; }
   .toast { background: #1B3A6B; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px;
@@ -348,7 +365,11 @@
 <div class="section">
       <div class="section-title">Customer Info</div>
       <label class="req">Facility / Property name</label>
-      <input type="text" id="inp-facility" placeholder="e.g. Henley Enterprises — Lowell" oninput="refresh()">
+      <div class="st-wrap">
+        <input type="text" id="inp-facility" placeholder="Start typing to search ServiceTitan..." autocomplete="off" oninput="refresh(); stSearch(this.value)" onkeydown="stKeyNav(event)">
+        <div class="st-dd" id="st-dd"></div>
+        <div class="st-loaded-tag" id="st-loaded-tag">&#10003; Loaded from ServiceTitan</div>
+      </div>
       <label>Facility address</label>
       <input type="text" id="inp-address" placeholder="e.g. 123 Main St, Lowell MA 01852" oninput="refresh()">
       <label class="req">Contact name</label>
@@ -811,6 +832,107 @@ if (sessionStorage.getItem('sitePassword')) {
   document.getElementById('login-overlay').style.display = 'none';
 }
 
+// ── ServiceTitan customer typeahead ──────────────────────────────────────
+let stEnabled = true;        // flips false if server says ST isn't configured
+let stTimer = null;
+let stResults = [];
+let stHighlight = -1;
+let stSelectedEmail = '';    // email from ST contacts, used to prefill DocuSign
+
+function stHeaders() { return { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }; }
+
+function stSearch(q) {
+  if (!stEnabled) return;
+  clearTimeout(stTimer);
+  const dd = document.getElementById('st-dd');
+  document.getElementById('st-loaded-tag').style.display = 'none';
+  stSelectedEmail = '';
+  q = q.trim();
+  if (q.length < 2) { dd.classList.remove('open'); return; }
+  stTimer = setTimeout(async () => {
+    dd.innerHTML = '<div class="st-dd-status">Searching ServiceTitan...</div>';
+    dd.classList.add('open');
+    try {
+      const resp = await fetch('/st-customers?q=' + encodeURIComponent(q), { headers: stHeaders() });
+      if (resp.status === 503) { stEnabled = false; dd.classList.remove('open'); return; }
+      if (!resp.ok) throw new Error();
+      stResults = await resp.json();
+      stHighlight = -1;
+      if (stResults.length === 0) {
+        dd.innerHTML = '<div class="st-dd-status">No matches — you can still type the name manually.</div>';
+        return;
+      }
+      dd.innerHTML = stResults.map((c, i) => `
+        <div class="st-dd-item" id="st-item-${i}" onmousedown="event.preventDefault(); stPick(${i})">
+          <div class="st-dd-name">${c.name}
+            <span class="st-dd-badge ${c.type === 'Commercial' ? '' : 'res'}">${c.type || ''}</span>
+          </div>
+          ${c.address ? `<div class="st-dd-addr">${c.address}</div>` : ''}
+        </div>`).join('');
+    } catch(e) {
+      dd.innerHTML = '<div class="st-dd-status">ServiceTitan search unavailable right now.</div>';
+    }
+  }, 300);
+}
+
+function stKeyNav(e) {
+  const dd = document.getElementById('st-dd');
+  if (!dd.classList.contains('open') || stResults.length === 0) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    stHighlight = e.key === 'ArrowDown'
+      ? Math.min(stHighlight + 1, stResults.length - 1)
+      : Math.max(stHighlight - 1, 0);
+    stResults.forEach((_, i) => {
+      const el = document.getElementById('st-item-' + i);
+      if (el) el.classList.toggle('hl', i === stHighlight);
+    });
+    const hl = document.getElementById('st-item-' + stHighlight);
+    if (hl) hl.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && stHighlight >= 0) {
+    e.preventDefault();
+    stPick(stHighlight);
+  } else if (e.key === 'Escape') {
+    dd.classList.remove('open');
+  }
+}
+
+async function stPick(i) {
+  const c = stResults[i];
+  if (!c) return;
+  document.getElementById('st-dd').classList.remove('open');
+  document.getElementById('inp-facility').value = c.name;
+  document.getElementById('inp-facility').classList.remove('invalid');
+  if (c.address) document.getElementById('inp-address').value = c.address;
+  refresh();
+  // Pull location + contact details in the background
+  try {
+    const resp = await fetch('/st-customer/' + c.id, { headers: stHeaders() });
+    if (!resp.ok) return;
+    const det = await resp.json();
+    // Prefer the service location address over the billing address
+    if (det.locations && det.locations.length && det.locations[0].address) {
+      document.getElementById('inp-address').value = det.locations[0].address;
+    }
+    if (det.contacts && det.contacts.length) {
+      const named = det.contacts.find(ct => ct.name);
+      if (named && !gv('inp-contact')) {
+        document.getElementById('inp-contact').value = named.name;
+        document.getElementById('inp-contact').classList.remove('invalid');
+      }
+      const email = det.contacts.find(ct => (ct.type || '').toLowerCase() === 'email');
+      if (email) stSelectedEmail = email.value;
+    }
+    document.getElementById('st-loaded-tag').style.display = 'block';
+    refresh();
+  } catch(e) { /* manual entry still works */ }
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.st-wrap')) document.getElementById('st-dd').classList.remove('open');
+});
+
 // ── Init: remember salesperson, default date, clear validation on input ──
 ['inp-sales-name','inp-sales-phone','inp-sales-email'].forEach(id => {
   const el = document.getElementById(id);
@@ -934,7 +1056,7 @@ function openDSModal() {
   if (!validateForm()) return;
   _dsPropData = null;
   document.getElementById('ds-customer-name').value  = gv('inp-contact');
-  document.getElementById('ds-customer-email').value = '';
+  document.getElementById('ds-customer-email').value = stSelectedEmail || '';
   document.getElementById('ds-success').style.display = 'none';
   document.getElementById('ds-send-btn').disabled = false;
   document.getElementById('ds-btn-label').textContent = 'Send for Signature';
