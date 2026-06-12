@@ -284,6 +284,39 @@
     .topbar-sub { display: none; }
   }
 
+  /* ── Price calculator ── */
+  .calc-toggle { width: 100%; padding: 9px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue);
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; }
+  .calc-toggle:hover { background: var(--mid-blue); }
+  .calc-body { display: none; border: 1px solid var(--mid-blue); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); padding: 12px; background: #fafcff; }
+  .calc-body.open { display: block; }
+  .calc-sub { font-size: 10px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--blue); margin: 10px 0 6px; }
+  .calc-sub:first-child { margin-top: 0; }
+  .calc-eq-grid { display: grid; grid-template-columns: 1fr 34px 48px 48px; gap: 4px; align-items: center; }
+  .calc-eq-head { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
+  .calc-eq-name { font-size: 11px; color: var(--gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .calc-eq-qty { font-size: 11px; font-weight: 500; color: var(--blue); text-align: center; }
+  .calc-input { width: 100%; padding: 4px 4px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 11px; font-family: 'DM Sans', sans-serif; color: var(--gray); text-align: center; }
+  .calc-input:focus { outline: none; border-color: var(--blue); }
+  .calc-assume-grid { display: grid; grid-template-columns: 1fr 64px 1fr 64px; gap: 4px 8px; align-items: center; }
+  .calc-assume-label { font-size: 10.5px; color: var(--muted); }
+  .calc-age-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .age-pill { flex: 1; padding: 6px 4px; font-size: 10.5px; text-align: center; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer; background: white; color: var(--muted); white-space: nowrap; }
+  .age-pill.active { background: var(--blue); color: white; border-color: var(--blue); }
+  .calc-results { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .calc-result { background: white; border: 1px solid var(--mid-blue); border-radius: var(--radius-sm); padding: 8px 6px; text-align: center; }
+  .calc-result-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 3px; }
+  .calc-result-val { font-size: 15px; font-weight: 500; color: var(--blue); }
+  .calc-result-sub { font-size: 9px; color: #aaa; margin-top: 2px; }
+  .calc-apply { width: 100%; padding: 9px; margin-top: 8px; background: var(--blue); color: white; border: none;
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .calc-apply:hover { background: #152d54; }
+  .calc-apply:disabled { background: #aaa; cursor: not-allowed; }
+  .calc-note { font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
   /* ── ServiceTitan typeahead ── */
   .st-wrap { position: relative; }
   .st-dd { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--mid-blue);
@@ -402,6 +435,55 @@
         <div class="price-grid-calc empty" id="p-5-q">—</div>
         <div class="price-grid-calc empty" id="p-5-s">—</div>
         <div class="price-grid-calc empty" id="p-5-a">—</div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <button class="calc-toggle" type="button" onclick="toggleCalc()">
+          <span>&#128202; Price Calculator</span><span id="calc-arrow">&#9662;</span>
+        </button>
+        <div class="calc-body" id="calc-body">
+          <div class="calc-sub">Equipment Hours <span style="text-transform:none;letter-spacing:0;color:#aaa;font-weight:400;">(per unit, per visit)</span></div>
+          <div class="calc-eq-grid" id="calc-eq-rows">
+            <div class="calc-eq-head" style="text-align:left;">Equipment</div>
+            <div class="calc-eq-head">Qty</div>
+            <div class="calc-eq-head">Qtrly hrs</div>
+            <div class="calc-eq-head">Annual hrs</div>
+          </div>
+          <div id="calc-eq-empty" class="calc-note">Select equipment above to calculate pricing.</div>
+
+          <div class="calc-sub">Assumptions</div>
+          <div class="calc-assume-grid">
+            <div class="calc-assume-label">Labor rate $/hr</div>
+            <input class="calc-input" type="number" id="as-labor" step="1" min="0" oninput="calcSuggest(); saveAssumptions()">
+            <div class="calc-assume-label">Travel hrs/visit</div>
+            <input class="calc-input" type="number" id="as-travel" step="0.25" min="0" oninput="calcSuggest(); saveAssumptions()">
+            <div class="calc-assume-label">Materials $/visit</div>
+            <input class="calc-input" type="number" id="as-mat" step="1" min="0" oninput="calcSuggest(); saveAssumptions()">
+            <div class="calc-assume-label">Tax %</div>
+            <input class="calc-input" type="number" id="as-tax" step="0.01" min="0" oninput="calcSuggest(); saveAssumptions()">
+            <div class="calc-assume-label">Margin factor</div>
+            <input class="calc-input" type="number" id="as-margin" step="0.05" min="0.1" max="1" oninput="calcSuggest(); saveAssumptions()">
+            <div class="calc-assume-label">Commission %</div>
+            <input class="calc-input" type="number" id="as-comm" step="1" min="0" oninput="calcSuggest(); saveAssumptions()">
+          </div>
+
+          <div class="calc-sub">Equipment Age</div>
+          <div class="calc-age-pills" id="calc-age-pills">
+            <div class="age-pill active" data-disc="0"    onclick="setAge(this)">&lt;3 yrs</div>
+            <div class="age-pill" data-disc="0.05" onclick="setAge(this)">3–7 <span style="color:inherit;opacity:.7;">−5%</span></div>
+            <div class="age-pill" data-disc="0.10" onclick="setAge(this)">7–12 <span style="color:inherit;opacity:.7;">−10%</span></div>
+            <div class="age-pill" data-disc="0.20" onclick="setAge(this)">&gt;12 <span style="color:inherit;opacity:.7;">−20%</span></div>
+          </div>
+
+          <div class="calc-results">
+            <div class="calc-result"><div class="calc-result-label">Quarterly</div><div class="calc-result-val" id="calc-q">—</div><div class="calc-result-sub" id="calc-q-sub"></div></div>
+            <div class="calc-result"><div class="calc-result-label">Semi-Annual</div><div class="calc-result-val" id="calc-s">—</div><div class="calc-result-sub" id="calc-s-sub"></div></div>
+            <div class="calc-result"><div class="calc-result-label">Annual</div><div class="calc-result-val" id="calc-a">—</div><div class="calc-result-sub" id="calc-a-sub"></div></div>
+          </div>
+          <button class="calc-apply" id="calc-apply" type="button" onclick="applySuggest()" disabled>Apply to Service Pricing</button>
+          <div class="calc-note">Quarterly = 3 quarterly visits + 1 annual visit · Semi-Annual = 1 + 1 · Annual = 1 annual visit.
+            Price = (labor + travel + materials w/ tax) &divide; margin factor + commission, less age discount.</div>
+        </div>
       </div>
 
     </div>
@@ -629,6 +711,7 @@ function refresh() {
   const body = document.getElementById('preview-body');
   if (active.length === 0) {
     body.innerHTML = '<div class="preview-empty">Select equipment above to build your proposal preview.</div>';
+    syncCalcRows();
     return;
   }
 
@@ -689,6 +772,7 @@ function refresh() {
   </div>`;
 
   body.innerHTML = html;
+  syncCalcRows();
 }
 
 async function generate() {
@@ -830,6 +914,141 @@ async function doLogin() {
 // Auto-hide overlay if already authenticated this session
 if (sessionStorage.getItem('sitePassword')) {
   document.getElementById('login-overlay').style.display = 'none';
+}
+
+// ── Price calculator (mirrors Commercial Maintenance Pricing 5.0.xlsx) ───
+// Default hours per unit per visit, by equipment type: q = quarterly visit, a = annual visit
+const EQ_HOURS = {
+  rtu:    { q: 0.3,  a: 1.0  },
+  split:  { q: 0.3,  a: 1.5  },
+  mini:   { q: 0.33, a: 1.5  },
+  vrf:    { q: 0.5,  a: 1.0  },
+  vav:    { q: 0.25, a: 1.0  },
+  reznor: { q: 0,    a: 0.75 },
+  mau:    { q: 0.5,  a: 1.5  },
+  exhaust:{ q: 0.25, a: 0.75 },
+  boiler: { q: 0.5,  a: 1.5  },
+  erv:    { q: 0.5,  a: 1.5  },
+};
+const CALC_DEFAULTS = { labor: 149, travel: 0.5, mat: 25, tax: 6.25, margin: 0.7, comm: 10 };
+let calcHours = {};   // per-proposal overrides {id:{q,a}}
+let calcAgeDisc = 0;
+let calcSig = '';
+
+function loadAssumptions() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('aa_calc_v1')) || {}; } catch(e) {}
+  const v = { ...CALC_DEFAULTS, ...saved };
+  document.getElementById('as-labor').value  = v.labor;
+  document.getElementById('as-travel').value = v.travel;
+  document.getElementById('as-mat').value    = v.mat;
+  document.getElementById('as-tax').value    = v.tax;
+  document.getElementById('as-margin').value = v.margin;
+  document.getElementById('as-comm').value   = v.comm;
+}
+function saveAssumptions() {
+  localStorage.setItem('aa_calc_v1', JSON.stringify({
+    labor:  parseFloat(document.getElementById('as-labor').value)  || 0,
+    travel: parseFloat(document.getElementById('as-travel').value) || 0,
+    mat:    parseFloat(document.getElementById('as-mat').value)    || 0,
+    tax:    parseFloat(document.getElementById('as-tax').value)    || 0,
+    margin: parseFloat(document.getElementById('as-margin').value) || 0.7,
+    comm:   parseFloat(document.getElementById('as-comm').value)   || 0,
+  }));
+}
+
+function toggleCalc() {
+  const body = document.getElementById('calc-body');
+  body.classList.toggle('open');
+  document.getElementById('calc-arrow').innerHTML = body.classList.contains('open') ? '&#9652;' : '&#9662;';
+}
+
+function getCalcHours(id) {
+  return calcHours[id] || EQ_HOURS[id] || { q: 0.5, a: 1 };
+}
+function setCalcHours(id, field, val) {
+  calcHours[id] = { ...getCalcHours(id), [field]: parseFloat(val) || 0 };
+  calcSuggest();
+}
+
+// Rebuild the per-equipment hour rows only when the active set / quantities change
+function syncCalcRows() {
+  const active = EQ_DATA.filter(e => state[e.id].active);
+  const sig = active.map(e => e.id + ':' + state[e.id].qty).join('|');
+  if (sig !== calcSig) {
+    calcSig = sig;
+    const grid = document.getElementById('calc-eq-rows');
+    // keep the 4 header cells, rebuild the rest
+    while (grid.children.length > 4) grid.removeChild(grid.lastChild);
+    active.forEach(e => {
+      const h = getCalcHours(e.id);
+      const name = document.createElement('div');
+      name.className = 'calc-eq-name'; name.textContent = e.name; name.title = e.name;
+      const qty = document.createElement('div');
+      qty.className = 'calc-eq-qty'; qty.textContent = state[e.id].qty;
+      const qIn = document.createElement('input');
+      qIn.className = 'calc-input'; qIn.type = 'number'; qIn.step = '0.05'; qIn.min = '0'; qIn.value = h.q;
+      qIn.oninput = function() { setCalcHours(e.id, 'q', this.value); };
+      const aIn = document.createElement('input');
+      aIn.className = 'calc-input'; aIn.type = 'number'; aIn.step = '0.05'; aIn.min = '0'; aIn.value = h.a;
+      aIn.oninput = function() { setCalcHours(e.id, 'a', this.value); };
+      grid.append(name, qty, qIn, aIn);
+    });
+    document.getElementById('calc-eq-empty').style.display = active.length ? 'none' : 'block';
+  }
+  calcSuggest();
+}
+
+function setAge(el) {
+  document.querySelectorAll('#calc-age-pills .age-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  calcAgeDisc = parseFloat(el.dataset.disc) || 0;
+  calcSuggest();
+}
+
+function calcSuggest() {
+  const active = EQ_DATA.filter(e => state[e.id].active);
+  const labor  = parseFloat(document.getElementById('as-labor').value)  || 0;
+  const travel = parseFloat(document.getElementById('as-travel').value) || 0;
+  const mat    = parseFloat(document.getElementById('as-mat').value)    || 0;
+  const tax    = (parseFloat(document.getElementById('as-tax').value)   || 0) / 100;
+  const margin = parseFloat(document.getElementById('as-margin').value) || 0.7;
+  const comm   = (parseFloat(document.getElementById('as-comm').value)  || 0) / 100;
+
+  let hrsA = 0, hrsS = 0, hrsQ = 0;
+  active.forEach(e => {
+    const n = state[e.id].qty, h = getCalcHours(e.id);
+    hrsA += n * h.a;                 // 1 annual visit
+    hrsS += n * (h.q + h.a);         // 1 quarterly + 1 annual visit
+    hrsQ += n * (3 * h.q + h.a);     // 3 quarterly + 1 annual visit
+  });
+
+  const sell = (manHrs, visits) => {
+    if (manHrs <= 0 || margin <= 0) return 0;
+    const laborCost = (manHrs + visits * travel) * labor;
+    const matCost   = mat * visits * (1 + tax);
+    const base      = (laborCost + matCost) / margin;
+    return base * (1 + comm) * (1 - calcAgeDisc);
+  };
+
+  window._calcVals = { q: sell(hrsQ, 4), s: sell(hrsS, 2), a: sell(hrsA, 1) };
+  const fmt = v => v > 0 ? '$' + Math.round(v).toLocaleString() : '—';
+  document.getElementById('calc-q').textContent = fmt(window._calcVals.q);
+  document.getElementById('calc-s').textContent = fmt(window._calcVals.s);
+  document.getElementById('calc-a').textContent = fmt(window._calcVals.a);
+  document.getElementById('calc-q-sub').textContent = window._calcVals.q > 0 ? fmt(window._calcVals.q / 4) + '/visit · ' + (Math.round(hrsQ*10)/10) + ' hrs' : '';
+  document.getElementById('calc-s-sub').textContent = window._calcVals.s > 0 ? fmt(window._calcVals.s / 2) + '/visit · ' + (Math.round(hrsS*10)/10) + ' hrs' : '';
+  document.getElementById('calc-a-sub').textContent = window._calcVals.a > 0 ? (Math.round(hrsA*10)/10) + ' hrs on site' : '';
+  document.getElementById('calc-apply').disabled = !(window._calcVals.q > 0 || window._calcVals.s > 0 || window._calcVals.a > 0);
+}
+
+function applySuggest() {
+  const v = window._calcVals || {};
+  if (v.q > 0) document.getElementById('p-1-q').value = Math.round(v.q);
+  if (v.s > 0) document.getElementById('p-1-s').value = Math.round(v.s);
+  if (v.a > 0) document.getElementById('p-1-a').value = Math.round(v.a);
+  calcPriceTable();
+  toast('Suggested prices applied — edit the grid freely before generating.', 'success');
 }
 
 // ── ServiceTitan customer typeahead ──────────────────────────────────────
@@ -978,6 +1197,7 @@ if (!document.getElementById('inp-date').value) setDateToToday();
 REQUIRED_FIELDS.forEach(id => {
   document.getElementById(id).addEventListener('input', function() { this.classList.remove('invalid'); });
 });
+loadAssumptions();
 
 buildGrid();
 refresh();
