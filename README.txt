@@ -32,6 +32,18 @@ service uses — see that repo's .env.example):
 If these are not set, the lookup silently disables itself and the form works
 exactly as before (manual entry).
 
+## AI tag reading — Survey tab (optional, beta)
+
+The Survey tab lets reps photograph equipment data tags; an AI model extracts
+brand, model, serial, and manufacture year. Requires one environment variable
+on Render:
+
+  ANTHROPIC_API_KEY = <key from console.anthropic.com>
+
+Optional: TAG_MODEL to override the model (default claude-haiku-4-5-20251001).
+Cost is roughly $0.01 per photo. Without the key, the Survey tab still works
+for manual entry — photos just won't auto-read.
+
 ## Notes
 - Proposals download as PDF named: FacilityName_PMA_Date.pdf
 - The PDF looks exactly like the on-screen preview

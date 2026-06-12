@@ -320,6 +320,69 @@ app.get('/st-equipment/:id', async (req, res) => {
   }
 });
 
+// ── Site survey: AI nameplate reader ──────────────────────────────────────
+// Sends a photo of an equipment data tag to the Claude API and returns
+// structured fields. Requires ANTHROPIC_API_KEY env var; the survey tab
+// falls back to manual entry when it's not set.
+const TAG_PROMPT = `You are reading a photo of an HVAC equipment nameplate / data tag.
+Extract the following and respond with ONLY a JSON object, no other text:
+{
+  "brand": string|null,           // manufacturer, e.g. "Carrier", "Trane"
+  "model": string|null,           // model number exactly as printed
+  "serial": string|null,          // serial number exactly as printed
+  "equipment_type": string|null,  // best guess, one of: rtu, split, mini, vrf, vav, reznor, mau, exhaust, boiler, erv
+  "tonnage": number|null,         // cooling capacity in tons if determinable (12000 BTU = 1 ton)
+  "mfg_year": number|null,        // 4-digit manufacture year
+  "confidence": "high"|"medium"|"low"
+}
+For mfg_year: use a printed date if present; otherwise attempt to decode the serial number using
+manufacturer conventions (Carrier/Bryant/Payne: digits 3-4 are year; Trane: leading digit/letter year codes;
+Lennox: digits 3-4 of serial are year; York: letter year codes; Rheem/Ruud: positions 5-8 are week+year;
+Goodman/Amana: first 2 digits year; Daikin/Mitsubishi: varies). If you cannot decode it confidently, return null.
+If the image is not an equipment tag or is unreadable, return all nulls with confidence "low".`;
+
+app.post('/survey-read-tag', async (req, res) => {
+  if (req.headers['x-site-password'] !== (process.env.SITE_PASSWORD || 'americanair'))
+    return res.status(401).json({ error: 'Unauthorized' });
+  if (!process.env.ANTHROPIC_API_KEY)
+    return res.status(503).json({ error: 'Tag reading not configured' });
+  const { imageBase64, mediaType } = req.body || {};
+  if (!imageBase64 || imageBase64.length > 4_000_000)
+    return res.status(400).json({ error: 'Bad or oversized image' });
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.TAG_MODEL || 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: imageBase64 } },
+            { type: 'text', text: TAG_PROMPT },
+          ],
+        }],
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error('AI API ' + resp.status + ': ' + JSON.stringify(data).slice(0, 200));
+    let text = (data.content && data.content[0] && data.content[0].text) || '';
+    text = text.replace(/```json|```/g, '').trim();
+    const start = text.indexOf('{'), end = text.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('No JSON in AI response');
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    res.json(parsed);
+  } catch (e) {
+    console.error('Tag read error:', e.message);
+    res.status(502).json({ error: 'Could not read the tag — enter details manually' });
+  }
+});
+
 // ── Password protection ───────────────────────────────────────────────────
 const SITE_PASSWORD = process.env.SITE_PASSWORD || 'americanair';
 
@@ -501,11 +564,25 @@ function buildHTML(data) {
     return html;
   })();
 
+  const surveyUnits = Array.isArray(data.surveyUnits) ? data.surveyUnits : [];
   const eqScheduleRows = equipment.map((e, i) => {
     const eq = EQ_CATALOG[e.id];
-    return `<tr class="${i%2===1?'alt':''}">
+    const units = surveyUnits.filter(u => u.typeId === e.id);
+    let rows = `<tr class="${i%2===1?'alt':''}">
       <td>${eq.name}</td><td>${e.qty}</td><td></td>
     </tr>`;
+    units.forEach((u, j) => {
+      const detail = [
+        [u.brand, u.model].filter(Boolean).join(' '),
+        u.serial ? 'S/N ' + u.serial : '',
+        u.year ? 'Mfg ' + u.year : '',
+        u.filter ? 'Filter ' + u.filter : '',
+      ].filter(Boolean).join(' &middot; ');
+      if (detail) rows += `<tr class="${i%2===1?'alt':''}">
+        <td style="padding-left:24px;font-size:9.5px;color:#777;">&ndash; Unit ${j+1}</td><td></td><td style="font-size:9.5px;color:#777;">${detail}</td>
+      </tr>`;
+    });
+    return rows;
   }).join('');
 
   const eqScopeHTML = equipment.map(e => {

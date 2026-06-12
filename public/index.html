@@ -334,6 +334,37 @@
   .st-dd-status { padding: 10px 12px; font-size: 12px; color: var(--muted); }
   .st-loaded-tag { font-size: 10px; color: #2e7d32; margin-top: 3px; display: none; }
 
+  /* ── Site survey ── */
+  .survey-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+  .survey-snap { flex: 2; padding: 12px; background: var(--blue); color: white; border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .survey-snap:hover { background: #152d54; }
+  .survey-snap:disabled { background: #aaa; cursor: wait; }
+  .survey-manual { flex: 1; padding: 12px; background: white; color: var(--blue); border: 1.5px solid var(--blue);
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .survey-manual:hover { background: var(--light-blue); }
+  .survey-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; background: white; }
+  .survey-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .survey-card-num { font-size: 11px; font-weight: 500; color: var(--blue); }
+  .survey-conf { font-size: 9px; padding: 1px 7px; border-radius: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .survey-conf.high { background: #e8f5e9; color: #2e7d32; }
+  .survey-conf.medium { background: #fff8e1; color: #e65100; }
+  .survey-conf.low { background: #fce4ec; color: #c62828; }
+  .survey-del { background: none; border: none; color: #c62828; font-size: 14px; cursor: pointer; padding: 0 4px; }
+  .survey-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .survey-grid select, .survey-grid input { width: 100%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--gray); background: white; }
+  .survey-grid select:focus, .survey-grid input:focus { outline: none; border-color: var(--blue); }
+  .survey-grid .full { grid-column: 1 / -1; }
+  .survey-summary { background: var(--light-blue); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: #185FA5; margin: 10px 0; }
+  .survey-apply { width: 100%; padding: 12px; background: var(--blue); color: white; border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .survey-apply:hover { background: #152d54; }
+  .survey-apply:disabled { background: #aaa; cursor: not-allowed; }
+  .survey-clear { width: 100%; padding: 8px; background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 8px; }
+  .survey-empty { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
   /* ── Toasts & validation ── */
   .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; }
   .toast { background: #1B3A6B; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px;
@@ -389,6 +420,7 @@
 
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-new" onclick="switchTab('new')">New Proposal</button>
+      <button class="tab-btn" id="tab-survey" onclick="switchTab('survey')">Survey <span style="font-size:9px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">BETA</span></button>
       <button class="tab-btn" id="tab-mine" onclick="switchTab('mine')">My Proposals</button>
       <button class="tab-btn" id="tab-dash" onclick="switchTab('dash')">Dashboard</button>
     </div>
@@ -519,6 +551,20 @@
     <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
 
     </div><!-- end new proposal pane -->
+
+    <!-- ══ SITE SURVEY TAB (BETA) ══ -->
+    <div class="tab-pane" id="pane-survey">
+      <div class="survey-actions">
+        <button class="survey-snap" id="survey-snap" onclick="document.getElementById('survey-file').click()">&#128247; Snap Equipment Tag</button>
+        <button class="survey-manual" onclick="surveyAddManual()">+ Add Manually</button>
+      </div>
+      <input type="file" id="survey-file" accept="image/*" capture="environment" style="display:none" onchange="surveyPhotoPicked(this)">
+      <div id="survey-list"></div>
+      <div class="survey-empty" id="survey-empty">No units surveyed yet.<br>Snap a photo of an equipment data tag and the model, serial, and age will be read automatically.</div>
+      <div class="survey-summary" id="survey-summary" style="display:none;"></div>
+      <button class="survey-apply" id="survey-apply" onclick="surveyApply()" disabled>Apply Survey to Proposal</button>
+      <button class="survey-clear" onclick="surveyClear()">Clear survey</button>
+    </div><!-- end survey pane -->
 
     <!-- ══ MY PROPOSALS TAB ══ -->
     <div class="tab-pane" id="pane-mine">
@@ -798,6 +844,7 @@ async function generate() {
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+      surveyUnits: surveyList.filter(u => u.typeId),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
     };
 
@@ -1051,6 +1098,175 @@ function applySuggest() {
   toast('Suggested prices applied — edit the grid freely before generating.', 'success');
 }
 
+// ── Site survey (beta) ────────────────────────────────────────────────────
+let surveyList = [];
+try { surveyList = JSON.parse(localStorage.getItem('aa_survey_v1')) || []; } catch(e) {}
+
+function saveSurvey() { localStorage.setItem('aa_survey_v1', JSON.stringify(surveyList)); }
+
+function resizeImageToB64(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1568;
+      let { width: w, height: h } = img;
+      if (Math.max(w, h) > MAX) { const k = MAX / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not load image')); };
+    img.src = url;
+  });
+}
+
+async function surveyPhotoPicked(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // allow re-snapping the same file
+  if (!file) return;
+  const btn = document.getElementById('survey-snap');
+  btn.disabled = true; btn.textContent = 'Reading tag...';
+  try {
+    const b64 = await resizeImageToB64(file);
+    const resp = await fetch('/survey-read-tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+      body: JSON.stringify({ imageBase64: b64, mediaType: 'image/jpeg' }),
+    });
+    if (resp.status === 503) {
+      toast('AI tag reading isn\'t set up yet — unit added for manual entry.', 'info', { duration: 6000 });
+      surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '' });
+    } else if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      toast(err.error || 'Could not read the tag — unit added for manual entry.', 'error', { duration: 6000 });
+      surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: 'low' });
+    } else {
+      const r = await resp.json();
+      surveyList.push({
+        typeId: r.equipment_type || '',
+        brand:  r.brand  || '',
+        model:  r.model  || '',
+        serial: r.serial || '',
+        year:   r.mfg_year || '',
+        filter: '',
+        conf:   r.confidence || 'medium',
+      });
+      toast('Tag read — check the fields and correct anything that looks off.', 'success');
+    }
+    saveSurvey();
+    renderSurvey();
+  } catch(e) {
+    toast('Photo error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '&#128247; Snap Equipment Tag';
+  }
+}
+
+function surveyAddManual() {
+  surveyList.push({ typeId: '', brand: '', model: '', serial: '', year: '', filter: '', conf: '' });
+  saveSurvey();
+  renderSurvey();
+}
+
+function surveyField(i, field, val) {
+  if (surveyList[i]) { surveyList[i][field] = val; saveSurvey(); surveySummary(); }
+}
+
+function surveyDelete(i) {
+  surveyList.splice(i, 1);
+  saveSurvey();
+  renderSurvey();
+}
+
+function surveyTypeOptions(sel) {
+  return '<option value="">— equipment type —</option>' +
+    EQ_DATA.map(e => `<option value="${e.id}" ${e.id===sel?'selected':''}>${e.name}</option>`).join('');
+}
+
+function renderSurvey() {
+  const list = document.getElementById('survey-list');
+  document.getElementById('survey-empty').style.display = surveyList.length ? 'none' : 'block';
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  list.innerHTML = surveyList.map((u, i) => `
+    <div class="survey-card">
+      <div class="survey-card-top">
+        <span class="survey-card-num">Unit ${i + 1}</span>
+        <span>
+          ${u.conf ? `<span class="survey-conf ${u.conf}">${u.conf}</span>` : ''}
+          <button class="survey-del" onclick="surveyDelete(${i})" title="Remove">&#10005;</button>
+        </span>
+      </div>
+      <div class="survey-grid">
+        <select class="full" onchange="surveyField(${i},'typeId',this.value)">${surveyTypeOptions(u.typeId)}</select>
+        <input placeholder="Brand" value="${esc(u.brand)}" oninput="surveyField(${i},'brand',this.value)">
+        <input placeholder="Model #" value="${esc(u.model)}" oninput="surveyField(${i},'model',this.value)">
+        <input placeholder="Serial #" value="${esc(u.serial)}" oninput="surveyField(${i},'serial',this.value)">
+        <input placeholder="Mfg year" type="number" min="1970" max="2030" value="${esc(u.year)}" oninput="surveyField(${i},'year',this.value)">
+        <input class="full" placeholder="Filter size (e.g. 24x12x1)" value="${esc(u.filter)}" oninput="surveyField(${i},'filter',this.value)">
+      </div>
+    </div>`).join('');
+  surveySummary();
+}
+
+function surveySummary() {
+  const box = document.getElementById('survey-summary');
+  const typed = surveyList.filter(u => u.typeId);
+  const years = surveyList.map(u => parseInt(u.year)).filter(y => y > 1970);
+  const nowY = new Date().getFullYear();
+  const avgAge = years.length ? (years.reduce((s,y) => s + (nowY - y), 0) / years.length) : null;
+  if (surveyList.length === 0) { box.style.display = 'none'; }
+  else {
+    box.style.display = 'block';
+    box.innerHTML = `<strong>${surveyList.length}</strong> unit${surveyList.length!==1?'s':''} surveyed · ` +
+      `<strong>${typed.length}</strong> with type assigned` +
+      (avgAge !== null ? ` · avg age <strong>${avgAge.toFixed(1)} yrs</strong>` : '');
+  }
+  document.getElementById('survey-apply').disabled = typed.length === 0;
+}
+
+function surveyApply() {
+  const typed = surveyList.filter(u => u.typeId);
+  if (typed.length === 0) return;
+  // Counts per equipment type → cards
+  const counts = {};
+  typed.forEach(u => { counts[u.typeId] = (counts[u.typeId] || 0) + 1; });
+  EQ_DATA.forEach(e => {
+    const n = counts[e.id];
+    state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
+  });
+  buildGrid();
+  // Auto age tier from average age
+  const years = typed.map(u => parseInt(u.year)).filter(y => y > 1970);
+  if (years.length) {
+    const nowY = new Date().getFullYear();
+    const avgAge = years.reduce((s,y) => s + (nowY - y), 0) / years.length;
+    const disc = avgAge < 3 ? '0' : avgAge < 7 ? '0.05' : avgAge < 12 ? '0.10' : '0.20';
+    document.querySelectorAll('#calc-age-pills .age-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.disc === disc);
+    });
+    calcAgeDisc = parseFloat(disc);
+  }
+  refresh();
+  switchTab('new');
+  if (!document.getElementById('calc-body').classList.contains('open')) toggleCalc();
+  toast('Survey applied — ' + typed.length + ' unit' + (typed.length!==1?'s':'') + ' on the proposal' +
+    (years.length ? ', age tier set automatically.' : '.'), 'success', { duration: 6000 });
+}
+
+function surveyClear() {
+  const backup = surveyList.slice();
+  surveyList = [];
+  saveSurvey();
+  renderSurvey();
+  toast('Survey cleared.', 'info', {
+    actionLabel: 'Undo',
+    onAction: () => { surveyList = backup; saveSurvey(); renderSurvey(); },
+  });
+}
+
 // ── ServiceTitan customer typeahead ──────────────────────────────────────
 let stEnabled = true;        // flips false if server says ST isn't configured
 let stTimer = null;
@@ -1204,12 +1420,13 @@ refresh();
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(tab) {
-  ['new','mine','dash'].forEach(t => {
+  ['new','survey','mine','dash'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     document.getElementById('pane-'+t).classList.toggle('active', t===tab);
   });
   if (tab === 'mine') loadMyProposals();
   if (tab === 'dash') loadDashboard();
+  if (tab === 'survey') renderSurvey();
 }
 
 // ── My Proposals tab ──────────────────────────────────────────────────────
@@ -1366,6 +1583,7 @@ async function sendDocuSign() {
           salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
           date: fmtDate(), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
           equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+          surveyUnits: surveyList.filter(u => u.typeId),
           customerName, customerEmail,
         }),
       });
