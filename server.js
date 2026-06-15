@@ -309,16 +309,43 @@ app.get('/st-equipment/:id', async (req, res) => {
     const counts = {};
     const unmatched = [];
     const units = [];
+    // A split system is recorded in ServiceTitan as separate component records
+    // (condenser + coil + furnace + air handler). For maintenance pricing those
+    // are pieces of ONE serviceable unit, not three. We detect the component
+    // type, tally components per location, then collapse them into systems below
+    // so the pulled "Qty" reflects systems, not pieces. (Standalone types like
+    // RTU, mini split, boiler, etc. are still counted one-for-one.)
+    const SPLIT_COMP = [
+      ['coil',        /coil|evaporator/i],
+      ['furnace',     /furnace/i],
+      ['air_handler', /air handler|\bahu\b/i],
+      ['condenser',   /condens|heat pump/i],
+    ];
+    const STANDALONE = EQ_MATCHERS.filter(([id]) => id !== 'split');
+    const splitByLoc = {}; // locId -> { coil, furnace, air_handler, condenser }
     for (const r of equipment) {
       const label = [(r.type && r.type.name) || '', r.name || '', r.model || ''].join(' ');
-      const hit = EQ_MATCHERS.find(([, re]) => re.test(label));
-      if (hit) counts[hit[0]] = (counts[hit[0]] || 0) + 1;
-      else unmatched.push((r.type && r.type.name) || r.name || r.model || 'Unknown unit');
+      let typeId = null;
+      const std = STANDALONE.find(([, re]) => re.test(label));
+      if (std) {
+        typeId = std[0];
+        counts[typeId] = (counts[typeId] || 0) + 1;
+      } else {
+        const comp = SPLIT_COMP.find(([, re]) => re.test(label));
+        if (comp) {
+          typeId = 'split';
+          const loc = r.locationId || 0;
+          splitByLoc[loc] = splitByLoc[loc] || {};
+          splitByLoc[loc][comp[0]] = (splitByLoc[loc][comp[0]] || 0) + 1;
+        } else {
+          unmatched.push((r.type && r.type.name) || r.name || r.model || 'Unknown unit');
+        }
+      }
       let year = null;
       const dateStr = r.installedOn || r.manufacturedOn || null;
       if (dateStr) { const y = new Date(dateStr).getFullYear(); if (y > 1950) year = y; }
       units.push({
-        typeId: hit ? hit[0] : null,
+        typeId,
         label: r.name || (r.type && r.type.name) || 'Unit',
         brand: r.manufacturer || r.brand || '',
         model: r.model || '',
@@ -327,7 +354,17 @@ app.get('/st-equipment/:id', async (req, res) => {
         location: locName.get(r.locationId) || '',
       });
     }
-    res.json({ counts, unmatched, totalUnits: equipment.length, units });
+    // Collapse split components into systems: at each location the number of
+    // systems is the largest single component group there (e.g. 3 condensers +
+    // 3 coils + 2 furnaces => 3 systems). One coil + condenser + furnace => 1.
+    let splitSystems = 0, splitComponentTotal = 0;
+    for (const loc in splitByLoc) {
+      const c = splitByLoc[loc];
+      splitComponentTotal += (c.coil||0) + (c.furnace||0) + (c.air_handler||0) + (c.condenser||0);
+      splitSystems += Math.max(c.coil||0, c.furnace||0, c.air_handler||0, c.condenser||0);
+    }
+    if (splitSystems > 0) counts['split'] = splitSystems;
+    res.json({ counts, unmatched, totalUnits: equipment.length, splitSystems, splitComponentTotal, units });
   } catch (e) {
     console.error('ST equipment error:', e.message);
     res.status(502).json({ error: 'ServiceTitan equipment lookup failed' });

@@ -1668,7 +1668,11 @@ async function stLoadEquipment(customerId) {
     refresh();
     const total = ids.reduce((s, k) => s + eq.counts[k], 0);
     let msg = 'Loaded ' + total + ' unit' + (total !== 1 ? 's' : '') + ' across ' + ids.length +
-      ' equipment type' + (ids.length !== 1 ? 's' : '') + ' from ServiceTitan — adjust as needed.';
+      ' equipment type' + (ids.length !== 1 ? 's' : '') + ' from ServiceTitan — adjust the Qty as needed.';
+    if (eq.splitComponentTotal && eq.splitSystems && eq.splitComponentTotal > eq.splitSystems) {
+      msg += ' Grouped ' + eq.splitComponentTotal + ' split-system components (condenser/coil/furnace) into ' +
+        eq.splitSystems + ' system' + (eq.splitSystems !== 1 ? 's' : '') + '.';
+    }
     if (eq.unmatched && eq.unmatched.length) {
       msg += ' ' + eq.unmatched.length + ' unit(s) unmatched: ' +
         eq.unmatched.slice(0, 3).join(', ') + (eq.unmatched.length > 3 ? '…' : '');
