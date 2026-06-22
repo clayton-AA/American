@@ -560,6 +560,8 @@ const EQ_CATALOG = {
   exhaust: { name:'Exhaust / Supply Fan', cats:{ 'Mechanical':['Belt condition & tension — inspect / replace per contract','Sheaves — wear & alignment','Lubricate motor & fan bearings','Fan blade & housing — inspect & clean'], 'Electrical':['All electrical connections','Volts/amps — motor','Test all safety controls','Test all controls & sequences'], 'General':['Damper operation if applicable','Overall condition of unit','Recommend service if needed','Verify airflow & operation'] } },
   boiler: { name:'Boiler', cats:{ 'Combustion':['Burner assembly — inspect & clean','Combustion analysis — check & adjust','Heat exchanger — inspect for cracks & leaks','Flue & venting — inspect & clear','Gas valve & pilot assembly — inspect & test'], 'Mechanical':['Circulator pump(s) — inspect & lubricate','Expansion tank — inspect','Pressure relief valve — inspect & test','System pressure & water level — check & adjust','Strainer — inspect & clean'], 'Controls':['Aquastat / operating controls — calibrate & verify','High limit controls — test','Test all safety controls','Test all controls & sequences','Thermostat / BAS interface — verify'], 'General':['All electrical connections','Flue gas temperature — verify','Overall condition of unit','Recommend service if needed'] } },
   erv:    { name:'ERV / HRV',                   cats:{ 'Core & Filters':['Heat / energy recovery core — inspect & clean','Filters — clean or replace per contract','Core bypass damper operation','Defrost cycle operation if applicable'], 'Mechanical':['Fan wheels — clean & condition','Energy recovery wheel & belt — inspect & condition','Belts if applicable','Lubricate all serviceable bearings','Condensate drain if applicable'], 'Controls':['Controls & setpoints verified','Test all safety controls','Test all controls & sequences','Enthalpy sensors if applicable','Occupied / unoccupied schedules','Airflow verification'], 'General':['All electrical connections','Housing integrity & seals','Overall condition of unit','Recommend service if needed'] } },
+  backflow:    { name:'Backflow Preventer',     cats:{ 'Testing':['Test assembly per local jurisdiction requirements','Record test results on official test form','Submit results to water authority if required','Differential pressure — check & record'], 'Inspection':['Check valves — inspect for proper seating & operation','Relief valve — inspect & test operation','Shut-off valves — inspect & test operation','Air inlet valve if applicable — inspect & test'], 'General':['Inspect for leaks at all connections','Body & housing — corrosion & condition','Overall condition of assembly','Recommend repair or replacement if needed'] } },
+  waterheater: { name:'Water Heater',           cats:{ 'Flush & Sediment':['Flush tank to remove sediment buildup','Drain & refill — verify proper fill & recovery','Inspect for sediment level in flush water','Document flush date & condition'], 'Safety & Controls':['Temperature & pressure relief valve — inspect & test','Thermostat setpoint — verify & adjust','High-limit control — test','Expansion tank — inspect pressure & condition'], 'Combustion / Heating':['Burner assembly & ignition sequence if gas','Flue & venting — inspect & clear if applicable','Heating element(s) if electric — check','Gas valve & supply pressure if applicable'], 'General':['All electrical connections','Anode rod — inspect & replace if needed','Inspect for leaks at connections','Overall condition of unit','Recommend service if needed'] } },
 };
 
 const SERVICES = [
@@ -693,6 +695,7 @@ function buildHTML(data) {
   const surveyUnits = Array.isArray(data.surveyUnits) ? data.surveyUnits : [];
   const eqScheduleRows = equipment.map((e, i) => {
     const eq = EQ_CATALOG[e.id];
+    if (!eq) return '';
     const units = surveyUnits.filter(u => u.typeId === e.id);
     let rows = `<tr class="${i%2===1?'alt':''}">
       <td>${eq.name}</td><td>${e.qty}</td><td></td>
@@ -713,6 +716,7 @@ function buildHTML(data) {
 
   const eqScopeHTML = equipment.map(e => {
     const eq = EQ_CATALOG[e.id];
+    if (!eq) return '';
     const cats = Object.entries(eq.cats);
     const maxItems = Math.max(...cats.map(([,items]) => items.length));
     const totalPoints = cats.reduce((s,[,items]) => s + items.length, 0);
