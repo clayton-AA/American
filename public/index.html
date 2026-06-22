@@ -647,6 +647,13 @@
 </div>
 
 <script>
+// ── XSS-safe HTML escaper — wrap every server-supplied string in innerHTML ──
+const esc = s => String(s ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
 const EQ_DATA = [
   { id:'rtu',    name:'Rooftop Unit (RTU)',         defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Clean condenser coil','Check evaporator coil','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — inspect','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit']} },
   { id:'split',  name:'Split System (DX)',           defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — inspect','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit']} },
@@ -1566,8 +1573,10 @@ function stSearch(q) {
     dd.classList.add('open');
     try {
       const resp = await fetch('/st-customers?q=' + encodeURIComponent(q), { headers: stHeaders() });
-      if (resp.status === 503) { stEnabled = false; dd.classList.remove('open'); return; }
-      if (!resp.ok) throw new Error();
+      if (resp.status === 503) { stEnabled = false; dd.classList.remove('open'); dd.innerHTML = '<div class="st-dd-status">ServiceTitan unavailable — enter customer details manually.</div>'; dd.classList.add('open'); return; }
+      if (resp.status === 401) { stEnabled = false; dd.classList.remove('open'); toast('ServiceTitan session expired — reload the page.', 'error', { duration: 10000 }); return; }
+      if (resp.status === 429) { dd.innerHTML = '<div class="st-dd-status">Rate limited — wait a moment and try again.</div>'; return; }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       stResults = await resp.json();
       stHighlight = -1;
       if (stResults.length === 0) {
@@ -1576,10 +1585,10 @@ function stSearch(q) {
       }
       dd.innerHTML = stResults.map((c, i) => `
         <div class="st-dd-item" id="st-item-${i}" onmousedown="event.preventDefault(); stPick(${i})">
-          <div class="st-dd-name">${c.name}
-            <span class="st-dd-badge ${c.type === 'Commercial' ? '' : 'res'}">${c.type || ''}</span>
+          <div class="st-dd-name">${esc(c.name)}
+            <span class="st-dd-badge ${c.type === 'Commercial' ? '' : 'res'}">${esc(c.type)}</span>
           </div>
-          ${c.address ? `<div class="st-dd-addr">${c.address}</div>` : ''}
+          ${c.address ? `<div class="st-dd-addr">${esc(c.address)}</div>` : ''}
         </div>`).join('');
     } catch(e) {
       dd.innerHTML = '<div class="st-dd-status">ServiceTitan search unavailable right now.</div>';
@@ -1639,11 +1648,14 @@ async function stPick(i) {
         document.getElementById('inp-contact').classList.remove('invalid');
       }
       const email = det.contacts.find(ct => (ct.type || '').toLowerCase() === 'email');
-      if (email) stSelectedEmail = email.value;
+      if (email && /^[^@]+@[^@]+\.[^@]+$/.test(email.value)) stSelectedEmail = email.value;
     }
     document.getElementById('st-loaded-tag').style.display = 'block';
     refresh();
-  } catch(e) { /* manual entry still works */ }
+  } catch(e) {
+    updateSurveyPushUI();
+    toast('Could not load full customer details — address and email may be incomplete.', 'info');
+  }
 }
 
 // Auto-select equipment cards from ServiceTitan installed-equipment records
@@ -1682,7 +1694,11 @@ async function stLoadEquipment(customerId) {
         eq.unmatched.slice(0, 3).join(', ') + (eq.unmatched.length > 3 ? '…' : '');
     }
     toast(msg, 'success', { duration: 8000 });
-  } catch(e) { /* manual selection still works */ }
+  } catch(e) {
+    window._stUnits = [];
+    updateSurveyPushUI();
+    toast('Could not load ServiceTitan equipment — select manually.', 'info');
+  }
 }
 
 // Close dropdown on outside click
@@ -1693,6 +1709,7 @@ document.addEventListener('click', (e) => {
 // ── Init: remember salesperson, default date, clear validation on input ──
 ['inp-sales-name','inp-sales-phone','inp-sales-email'].forEach(id => {
   const el = document.getElementById(id);
+  if (!el) return;
   const saved = localStorage.getItem('aa_' + id);
   if (saved && !el.value) el.value = saved;
   el.addEventListener('input', () => localStorage.setItem('aa_' + id, el.value));
@@ -1722,19 +1739,21 @@ let myProposalsCache = [];
 
 async function loadMyProposals() {
   const repName = gv('inp-sales-name').trim().toLowerCase();
-  const loading = document.getElementById('mine-loading');
-  const list    = document.getElementById('mine-list');
-  const empty   = document.getElementById('mine-empty');
+  const loading   = document.getElementById('mine-loading');
+  const list      = document.getElementById('mine-list');
+  const empty     = document.getElementById('mine-empty');
+  const searchEl  = document.getElementById('mine-search');
 
   loading.style.display = 'block';
   list.innerHTML = '';
   empty.style.display = 'none';
+  if (searchEl) searchEl.disabled = true;
 
   try {
     const resp = await fetch('/my-proposals', {
       headers: { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }
     });
-    if (!resp.ok) { loading.textContent = 'Could not load proposals.'; return; }
+    if (!resp.ok) { loading.style.display = 'none'; list.innerHTML = '<div class="my-props-empty">Could not load proposals.</div>'; if (searchEl) searchEl.disabled = false; return; }
     const all = await resp.json();
 
     // Filter to this rep's proposals — match on salesName if filled in, else show all
@@ -1745,10 +1764,12 @@ async function loadMyProposals() {
   } catch(e) {
     loading.style.display = 'none';
     list.innerHTML = '<div class="my-props-empty">Error loading proposals.</div>';
+    if (searchEl) searchEl.disabled = false;
     return;
   }
 
   loading.style.display = 'none';
+  if (searchEl) searchEl.disabled = false;
   renderMyProposals(myProposalsCache);
 }
 
@@ -1784,11 +1805,11 @@ function renderMyProposals(proposals) {
     const dsTag = p.sentViaDocuSign ? ' <span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;">DocuSign</span>' : '';
     return `<div class="my-prop-card">
       <div class="my-prop-top">
-        <span class="my-prop-num">${p.proposalNumber||'—'}${dsTag}</span>
-        <span class="my-prop-date">${d}</span>
+        <span class="my-prop-num">${esc(p.proposalNumber)||'—'}${dsTag}</span>
+        <span class="my-prop-date">${esc(d)}</span>
       </div>
-      <div class="my-prop-facility">${p.facility||'—'}</div>
-      ${p.contact ? `<div class="my-prop-contact">${p.contact}</div>` : ''}
+      <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
+      ${p.contact ? `<div class="my-prop-contact">${esc(p.contact)}</div>` : ''}
       <div class="my-prop-btns">
         <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
         <button class="my-prop-ds" onclick="openDSModalForProp(window._myPropsMap[${i}])">&#9993; Send via DocuSign</button>
@@ -1888,7 +1909,8 @@ async function sendDocuSign() {
     document.getElementById('ds-success').style.display = 'block';
     lbl.textContent = '✓ Sent!';
     spin.style.display = 'none';
-    setTimeout(() => { closeDSModal(); if (!_dsPropData) loadMyProposals(); }, 3000);
+    const wasNew = !_dsPropData;
+    setTimeout(() => { closeDSModal(); if (wasNew) loadMyProposals(); }, 3000);
 
   } catch(e) {
     toast('Error sending: ' + e.message, 'error', { duration: 8000 });
@@ -1979,9 +2001,9 @@ function renderDashboard(proposals) {
     const lostBtn = status !== 'lost' ? '<button class="dash-lost-btn" onclick="markStatus('+i+',\'lost\')">Mark Lost</button>' : '';
     const delBtn  = '<button class="dash-del-btn" onclick="deleteProp('+i+')">🗑 Delete</button>';
     return '<div class="dash-prop-card" id="dash-card-'+i+'">'
-      +'<div class="dash-prop-top"><span class="dash-prop-num">'+(p.proposalNumber||'—')+'</span><span class="dash-prop-date">'+d+'</span></div>'
-      +'<div class="dash-prop-facility">'+(p.facility||'—')+'</div>'
-      +'<div class="dash-prop-meta">'+(p.salesName||'')+(p.contact?' · '+p.contact:'')+'</div>'
+      +'<div class="dash-prop-top"><span class="dash-prop-num">'+esc(p.proposalNumber||'—')+'</span><span class="dash-prop-date">'+esc(d)+'</span></div>'
+      +'<div class="dash-prop-facility">'+esc(p.facility||'—')+'</div>'
+      +'<div class="dash-prop-meta">'+esc(p.salesName||'')+(p.contact?' · '+esc(p.contact):'')+'</div>'
       +'<div class="dash-prop-btns">'+badge+wonBtn+lostBtn+val+delBtn+'</div>'
       +'</div>';
   }).join('');
@@ -2034,7 +2056,10 @@ function deleteProp(i) {
         });
         if (!resp.ok) throw new Error();
       } catch(e) {
-        toast('Server delete failed for ' + p.proposalNumber + ' — it will reappear on reload.', 'error', { duration: 8000 });
+        dashCache.push(p);
+        dashCache.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
+        renderDashboard(dashFiltered());
+        toast('Server delete failed for ' + p.proposalNumber + ' — proposal restored.', 'error', { duration: 8000 });
       }
     }
   });
@@ -2092,6 +2117,12 @@ function renderRenewals(proposals) {
 function startRenewal(proposalNumber) {
   const p = dashCache.find(c => c.proposalNumber === proposalNumber);
   if (!p) return;
+  // Reset ServiceTitan selection state so stale data from a prior session doesn't persist
+  stSelectedCustomerId = ''; stSelectedCustomerName = ''; stSelectedLocations = []; stSelectedEmail = '';
+  window._stUnits = [];
+  const loadedTag = document.getElementById('st-loaded-tag');
+  if (loadedTag) loadedTag.style.display = 'none';
+  updateSurveyPushUI();
   // Switch to New Proposal tab and pre-fill customer info
   switchTab('new');
   setTimeout(() => {
