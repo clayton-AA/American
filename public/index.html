@@ -555,6 +555,7 @@
     </button>
     <button class="btn-docusign" onclick="openDSModal()">&#9993; Send for Signature via DocuSign</button>
     <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
+    <div id="draft-status" style="text-align:center;font-size:11px;color:#9aa3ad;margin-top:8px;min-height:14px;"></div>
 
     </div><!-- end new proposal pane -->
 
@@ -841,6 +842,7 @@ function refresh() {
 
   body.innerHTML = html;
   syncCalcRows();
+  saveDraft();
 }
 
 async function generate() {
@@ -909,8 +911,69 @@ function clearAll() {
   setDateToToday();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+  clearDraft();
   buildGrid();
   refresh();
+}
+
+// ── Auto-save draft (customer details, pricing & equipment) ───────────────
+// Persists the in-progress New Proposal form to the browser so a refresh,
+// crash, or accidental navigation never loses a half-finished quote.
+// Salesperson fields and cost assumptions persist via their own keys already.
+const DRAFT_KEY = 'aa_draft_v1';
+const DRAFT_FIELDS = ['inp-facility','inp-address','inp-contact','inp-date','inp-additions','inp-exclusions','p-1-q','p-1-s','p-1-a'];
+let _draftTimer = null;
+
+function saveDraft() {
+  clearTimeout(_draftTimer);
+  _draftTimer = setTimeout(() => {
+    try {
+      const fields = {};
+      DRAFT_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
+      const eq = {};
+      EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) eq[e.id] = { qty: s.qty, visits: s.visits }; });
+      const hasContent = fields['inp-facility'] || fields['inp-address'] || fields['inp-contact']
+        || fields['inp-additions'] || fields['inp-exclusions']
+        || fields['p-1-q'] || fields['p-1-s'] || fields['p-1-a'] || Object.keys(eq).length;
+      if (!hasContent) { localStorage.removeItem(DRAFT_KEY); updateDraftStatus(null); return; }
+      const payload = { fields, eq, savedAt: Date.now() };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      updateDraftStatus(payload.savedAt);
+    } catch (e) { /* storage unavailable (private mode / full) — fail silently */ }
+  }, 600);
+}
+
+function restoreDraft() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) {}
+  if (!d || !d.fields) return false;
+  Object.entries(d.fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el && val != null && val !== '') el.value = val;
+  });
+  EQ_DATA.forEach(e => {
+    const saved = d.eq && d.eq[e.id];
+    state[e.id] = saved
+      ? { active: true, qty: saved.qty || 1, visits: saved.visits || e.defaultVisits }
+      : { active: false, qty: 1, visits: e.defaultVisits };
+  });
+  updateDraftStatus(d.savedAt || null);
+  return true;
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  updateDraftStatus(null);
+}
+
+function updateDraftStatus(ts) {
+  const el = document.getElementById('draft-status');
+  if (!el) return;
+  if (!ts) { el.textContent = ''; return; }
+  const t = new Date(ts);
+  let h = t.getHours(); const m = String(t.getMinutes()).padStart(2,'0');
+  const ap = h >= 12 ? 'PM' : 'AM'; h = ((h + 11) % 12) + 1;
+  el.textContent = '✓ Draft saved ' + h + ':' + m + ' ' + ap;
 }
 
 function setDateToToday() {
@@ -1714,6 +1777,7 @@ document.addEventListener('click', (e) => {
   if (saved && !el.value) el.value = saved;
   el.addEventListener('input', () => localStorage.setItem('aa_' + id, el.value));
 });
+const _draftRestored = restoreDraft();
 if (!document.getElementById('inp-date').value) setDateToToday();
 REQUIRED_FIELDS.forEach(id => {
   document.getElementById(id).addEventListener('input', function() { this.classList.remove('invalid'); });
@@ -1722,6 +1786,7 @@ loadAssumptions();
 
 buildGrid();
 refresh();
+if (_draftRestored) { calcPriceTable(); toast('Restored your unsaved draft.', 'info', { duration: 5000 }); }
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(tab) {
