@@ -717,6 +717,7 @@ function fmtDate() {
 function toast(msg, type, opts) {
   type = type || 'info'; opts = opts || {};
   const wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
   const t = document.createElement('div');
   t.className = 'toast ' + type;
   const span = document.createElement('span');

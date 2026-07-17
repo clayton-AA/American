@@ -1507,6 +1507,9 @@ app.post('/send-docusign', async (req, res) => {
   try {
     const pw = req.headers['x-site-password'];
     if (pw !== (process.env.SITE_PASSWORD || 'americanair')) return res.status(401).json({ error:'Unauthorized' });
+    if (!DS_INT_KEY || !DS_USER_ID || !DS_PRIVATE_KEY) {
+      return res.status(500).json({ error: 'DocuSign is not configured on this server. Add DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, and DOCUSIGN_PRIVATE_KEY to environment variables.' });
+    }
     const data = req.body;
     data.proposalNumber = getNextProposalNumber();
     const html    = buildHTML(data);
