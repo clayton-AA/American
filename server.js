@@ -592,6 +592,18 @@ const TC_SECTIONS = [
   { h:'Subcontract Rights', b:'American Air LLC reserves the right to subcontract certain repairs, if deemed necessary or in the best interest of and following approval by Client. Costs of this work will be handled as a parts sale and standard labor item in accordance with the applicable plan. Supplies, parts or equipment placed on Client\'s property shall remain the property of American Air LLC until such supplies, parts, or equipment are installed. American Air LLC reserves the right to remove such property within a reasonable period of time, if this agreement is terminated for any reason.' },
 ];
 
+// Escape client-supplied strings before interpolating into template HTML
+const escHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// Display name for an equipment entry: catalog name, or the rep-typed label
+// for the custom pseudo-type (which intentionally has no EQ_CATALOG entry)
+function eqDisplayName(e) {
+  const eq = EQ_CATALOG[e.id];
+  if (eq) return eq.name;
+  if (e.id === 'custom') return escHtml((e.label || '').trim() || 'Custom Equipment');
+  return '';
+}
+
 function buildHTML(data) {
   const { facility, address, contact, salesName, salesPhone, salesEmail, date, priceTable, additions, exclusions, equipment, proposalNumber } = data;
   const pt = priceTable || {};
@@ -694,11 +706,11 @@ function buildHTML(data) {
 
   const surveyUnits = Array.isArray(data.surveyUnits) ? data.surveyUnits : [];
   const eqScheduleRows = equipment.map((e, i) => {
-    const eq = EQ_CATALOG[e.id];
-    if (!eq) return '';
+    const name = eqDisplayName(e);
+    if (!name) return '';
     const units = surveyUnits.filter(u => u.typeId === e.id);
     let rows = `<tr class="${i%2===1?'alt':''}">
-      <td>${eq.name}</td><td>${e.qty}</td><td></td>
+      <td>${name}</td><td>${e.qty}</td><td></td>
     </tr>`;
     units.forEach((u, j) => {
       const detail = u.detail || [
@@ -1305,7 +1317,9 @@ app.post('/generate', async (req, res) => {
       try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
       const eqSummary = data.equipment.map(e => {
         const eq = EQ_CATALOG[e.id];
-        return eq ? `${e.qty}x ${eq.name}` : e.id;
+        if (eq) return `${e.qty}x ${eq.name}`;
+        if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`;
+        return e.id;
       }).join(', ');
       log.unshift({
         proposalNumber: data.proposalNumber,
@@ -1525,7 +1539,7 @@ app.post('/send-docusign', async (req, res) => {
     const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
-      const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; return eq ? `${e.qty}x ${eq.name}` : e.id; }).join(', ');
+      const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}`; if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
       log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }

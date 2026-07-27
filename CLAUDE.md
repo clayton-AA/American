@@ -92,6 +92,16 @@ rather than crashing — keep that guard in place.
 Current ids (12, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
 boiler, erv, backflow, waterheater`.
 
+**Exception — the `custom` pseudo-type** (front end only, `custom: true` in
+`EQ_DATA`): the rep types the equipment name into the card
+(`state.custom.label`, sent as `label` on the equipment payload entry). It has
+**no** `EQ_CATALOG` entry on purpose — `eqDisplayName()` in `server.js` renders
+it as a plain line item on the covered-equipment schedule (label is
+HTML-escaped there), and the scope-checklist section skips it via the existing
+`if (!eq)` guard. ServiceTitan/survey auto-select loops must `if (e.custom)
+return;` so they don't wipe the rep's entry, and the survey type dropdown
+excludes it.
+
 ## Front-end conventions (`public/index.html`)
 
 - **`refresh()` is the central hub.** Nearly every input change calls it; it

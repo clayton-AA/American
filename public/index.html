@@ -61,6 +61,9 @@
   .eq-ctrl-input { width: 38px; min-width: 0; padding: 2px 3px; border: 1px solid var(--mid-blue); border-radius: 4px;
     font-size: 12px; font-weight: 500; color: var(--blue); text-align: center; background: white; }
   .eq-ctrl-input:focus { outline: none; border-color: var(--blue); }
+  .eq-name-input { width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid var(--mid-blue); border-radius: 4px;
+    font-size: 12px; font-weight: 500; color: var(--blue); background: white; font-family: 'DM Sans', sans-serif; }
+  .eq-name-input:focus { outline: none; border-color: var(--blue); }
 
   /* ── Pricing table ── */
   .price-table-section { margin-bottom: 1.75rem; }
@@ -668,10 +671,13 @@ const EQ_DATA = [
   { id:'erv',    name:'ERV / HRV',                   defaultVisits:2, cats:{'Core & Filters':['Heat / energy recovery core — inspect & clean','Filters — clean or replace per contract','Core bypass damper operation','Defrost cycle operation if applicable'],'Mechanical':['Fan wheels — clean & condition','Energy recovery wheel & belt — inspect & condition','Belts if applicable','Lubricate all serviceable bearings','Condensate drain if applicable'],'Controls':['Controls & setpoints verified','Test all safety controls','Test all controls & sequences','Enthalpy sensors if applicable','Occupied / unoccupied schedules','Airflow verification'],'General':['All electrical connections','Housing integrity & seals','Overall condition of unit','Recommend service if needed']} },
   { id:'backflow', name:'Backflow Preventer',          defaultVisits:1, cats:{'Testing':['Test assembly per local jurisdiction requirements','Record test results on official test form','Submit results to water authority if required','Differential pressure — check & record'],'Inspection':['Check valves — inspect for proper seating & operation','Relief valve — inspect & test operation','Shut-off valves — inspect & test operation','Air inlet valve if applicable — inspect & test'],'General':['Inspect for leaks at all connections','Body & housing — corrosion & condition','Overall condition of assembly','Recommend repair or replacement if needed']} },
   { id:'waterheater', name:'Water Heater',             defaultVisits:1, cats:{'Flush & Sediment':['Flush tank to remove sediment buildup','Drain & refill — verify proper fill & recovery','Inspect for sediment level in flush water','Document flush date & condition'],'Safety & Controls':['Temperature & pressure relief valve — inspect & test','Thermostat setpoint — verify & adjust','High-limit control — test','Expansion tank — inspect pressure & condition'],'Combustion / Heating':['Burner assembly & ignition sequence if gas','Flue & venting — inspect & clear if applicable','Heating element(s) if electric — check','Gas valve & supply pressure if applicable'],'General':['All electrical connections','Anode rod — inspect & replace if needed','Inspect for leaks at connections','Overall condition of unit','Recommend service if needed']} },
+  // Custom pseudo-type: rep types the equipment name; renders as a plain line
+  // item on the proposal's covered-equipment schedule (no scope checklist).
+  { id:'custom', name:'Other / Custom', defaultVisits:2, custom:true, cats:{} },
 ];
 
 let state = {};
-EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}) }; });
 
 function buildGrid() {
   const g = document.getElementById('eq-grid');
@@ -681,9 +687,11 @@ function buildGrid() {
     const d = document.createElement('div');
     d.className = 'eq-card' + (s.active ? ' active' : '');
     d.id = 'card-' + eq.id;
+    const nameInput = eq.custom ? `
+        <input class="eq-name-input" type="text" maxlength="60" placeholder="e.g. Chiller, Cooling Tower..." value="${esc(s.label || '')}" id="custom-label-inp" onclick="event.stopPropagation()" oninput="updateCustomLabel(this.value)">` : '';
     d.innerHTML = `
       <div class="eq-card-name">${eq.name}<div class="eq-check"><div class="eq-check-inner"></div></div></div>
-      <div class="eq-controls">
+      <div class="eq-controls"${eq.custom ? ' style="flex-wrap:wrap"' : ''}>${nameInput}
         <span class="eq-ctrl-label">Qty</span>
         <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">
       </div>`;
@@ -695,6 +703,15 @@ function buildGrid() {
 function toggle(id) {
   state[id].active = !state[id].active;
   document.getElementById('card-'+id).classList.toggle('active', state[id].active);
+  if (id === 'custom' && state.custom.active) {
+    const inp = document.getElementById('custom-label-inp');
+    if (inp) inp.focus();
+  }
+  refresh();
+}
+
+function updateCustomLabel(v) {
+  state.custom.label = v;
   refresh();
 }
 
@@ -788,6 +805,14 @@ function refresh() {
   let html = '';
   active.forEach(eq => {
     const s = state[eq.id];
+    if (eq.custom) {
+      const nm = esc((s.label || '').trim() || 'Custom Equipment');
+      html += `<div class="preview-eq">
+        <div class="preview-eq-title">${nm}<span class="preview-eq-badge">${s.qty} unit${s.qty>1?'s':''}</span></div>
+        <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;">Custom equipment — listed as a line item on the covered equipment schedule.</div>
+      </div>`;
+      return;
+    }
     html += `<div class="preview-eq">
       <div class="preview-eq-title">${eq.name}<span class="preview-eq-badge">${s.qty} unit${s.qty>1?'s':''}</span></div>
       <div class="preview-cat-grid">`;
@@ -822,7 +847,6 @@ function refresh() {
   // ── Additional scope & exclusions preview ──
   const additions  = gv('inp-additions');
   const exclusions = gv('inp-exclusions');
-  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   if (additions) {
     html += `<div class="preview-eq">
       <div class="preview-eq-title">Additional Services Included</div>
@@ -846,10 +870,20 @@ function refresh() {
   saveDraft();
 }
 
+// If the custom card is active it must have a typed name — used by generate() and DocuSign
+function customLabelOk() {
+  if (!state.custom.active || (state.custom.label || '').trim()) return true;
+  toast('Type a name for the custom equipment type.', 'error');
+  const inp = document.getElementById('custom-label-inp');
+  if (inp) { inp.focus(); inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  return false;
+}
+
 async function generate() {
   const active = EQ_DATA.filter(e => state[e.id].active);
   if (active.length === 0) { toast('Select at least one equipment type.', 'error'); return; }
   if (!validateForm()) return;
+  if (!customLabelOk()) return;
 
   const btn  = document.getElementById('gen-btn');
   const lbl  = document.getElementById('btn-label');
@@ -868,7 +902,7 @@ async function generate() {
       priceTable: getPriceTable(),
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
-      equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+      equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
       surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
     };
@@ -911,7 +945,7 @@ function clearAll() {
   });
   setDateToToday();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
-  EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits }; });
+  EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}) }; });
   clearDraft();
   buildGrid();
   refresh();
@@ -932,7 +966,7 @@ function saveDraft() {
       const fields = {};
       DRAFT_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
       const eq = {};
-      EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) eq[e.id] = { qty: s.qty, visits: s.visits }; });
+      EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; } });
       const hasContent = fields['inp-facility'] || fields['inp-address'] || fields['inp-contact']
         || fields['inp-additions'] || fields['inp-exclusions']
         || fields['p-1-q'] || fields['p-1-s'] || fields['p-1-a'] || Object.keys(eq).length;
@@ -957,6 +991,7 @@ function restoreDraft() {
     state[e.id] = saved
       ? { active: true, qty: saved.qty || 1, visits: saved.visits || e.defaultVisits }
       : { active: false, qty: 1, visits: e.defaultVisits };
+    if (e.custom) state[e.id].label = (saved && saved.label) || '';
   });
   updateDraftStatus(d.savedAt || null);
   return true;
@@ -1064,6 +1099,7 @@ const EQ_HOURS = {
   erv:      { q: 0.5,  a: 1.5  },
   backflow: { q: 0,    a: 0.5  },
   waterheater: { q: 0, a: 0.75 },
+  custom: { q: 0.5,  a: 1.0  },
 };
 const CALC_DEFAULTS = { labor: 149, travel: 0.5, mat: 25, tax: 6.25, margin: 0.7, comm: 10 };
 let calcHours = {};   // per-proposal overrides {id:{q,a}}
@@ -1109,7 +1145,7 @@ function setCalcHours(id, field, val) {
 // Rebuild the per-equipment hour rows only when the active set / quantities change
 function syncCalcRows() {
   const active = EQ_DATA.filter(e => state[e.id].active);
-  const sig = active.map(e => e.id + ':' + state[e.id].qty).join('|');
+  const sig = active.map(e => e.id + ':' + state[e.id].qty + (e.custom ? ':' + (state[e.id].label || '') : '')).join('|');
   if (sig !== calcSig) {
     calcSig = sig;
     const grid = document.getElementById('calc-eq-rows');
@@ -1117,8 +1153,9 @@ function syncCalcRows() {
     while (grid.children.length > 4) grid.removeChild(grid.lastChild);
     active.forEach(e => {
       const h = getCalcHours(e.id);
+      const label = e.custom ? ((state[e.id].label || '').trim() || 'Custom Equipment') : e.name;
       const name = document.createElement('div');
-      name.className = 'calc-eq-name'; name.textContent = e.name; name.title = e.name;
+      name.className = 'calc-eq-name'; name.textContent = label; name.title = label;
       const qty = document.createElement('div');
       qty.className = 'calc-eq-qty'; qty.textContent = state[e.id].qty;
       const qIn = document.createElement('input');
@@ -1343,7 +1380,7 @@ function surveyDelete(i) {
 
 function surveyTypeOptions(sel) {
   return '<option value="">— equipment type —</option>' +
-    EQ_DATA.map(e => `<option value="${e.id}" ${e.id===sel?'selected':''}>${e.name}</option>`).join('');
+    EQ_DATA.filter(e => !e.custom).map(e => `<option value="${e.id}" ${e.id===sel?'selected':''}>${e.name}</option>`).join('');
 }
 
 function renderSurvey() {
@@ -1411,6 +1448,7 @@ function surveyApply() {
   const counts = {};
   groups.forEach(g => { const t = groupType(g); counts[t] = (counts[t] || 0) + 1; });
   EQ_DATA.forEach(e => {
+    if (e.custom) return; // survey types never map to the custom pseudo-type — keep the rep's entry
     const n = counts[e.id];
     state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
   });
@@ -1741,6 +1779,7 @@ async function stLoadEquipment(customerId) {
       return;
     }
     EQ_DATA.forEach(e => {
+      if (e.custom) return; // ST never reports the custom pseudo-type — keep the rep's entry
       const n = eq.counts[e.id];
       state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
     });
@@ -1900,6 +1939,7 @@ function openDSModal() {
   const active = EQ_DATA.filter(e => state[e.id].active);
   if (active.length === 0) { toast('Select at least one equipment type first.', 'error'); return; }
   if (!validateForm()) return;
+  if (!customLabelOk()) return;
   _dsPropData = null;
   document.getElementById('ds-customer-name').value  = gv('inp-contact');
   document.getElementById('ds-customer-email').value = stSelectedEmail || '';
@@ -1957,7 +1997,7 @@ async function sendDocuSign() {
           facility: gv('inp-facility'), address: gv('inp-address'), contact: gv('inp-contact'),
           salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
           date: fmtDate(), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
-          equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits })),
+          equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
           surveyUnits: surveyPayloadUnits(),
           customerName, customerEmail,
         }),
