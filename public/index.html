@@ -306,6 +306,7 @@
   .calc-eq-head { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
   .calc-eq-name { font-size: 11px; color: var(--gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .calc-eq-qty { font-size: 11px; font-weight: 500; color: var(--blue); text-align: center; }
+  .calc-eq-total { border-top: 1px solid var(--mid-blue); padding-top: 5px; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--blue); }
   .calc-input { width: 100%; padding: 4px 4px; border: 1px solid var(--border); border-radius: 4px;
     font-size: 11px; font-family: 'DM Sans', sans-serif; color: var(--gray); text-align: center; }
   .calc-input:focus { outline: none; border-color: var(--blue); }
@@ -1166,6 +1167,22 @@ function syncCalcRows() {
       aIn.oninput = function() { setCalcHours(e.id, 'a', this.value); };
       grid.append(name, qty, qIn, aIn);
     });
+    // Totals row — values filled by calcSuggest() so they track hour edits live
+    if (active.length) {
+      const mk = (cls, id, txt) => {
+        const d = document.createElement('div');
+        d.className = cls + ' calc-eq-total';
+        if (id) d.id = id;
+        if (txt) d.textContent = txt;
+        return d;
+      };
+      grid.append(
+        mk('calc-eq-name', '', 'Total per visit'),
+        mk('calc-eq-qty', 'calc-tot-units'),
+        mk('calc-eq-qty', 'calc-tot-q'),
+        mk('calc-eq-qty', 'calc-tot-a')
+      );
+    }
     document.getElementById('calc-eq-empty').style.display = active.length ? 'none' : 'block';
   }
   calcSuggest();
@@ -1187,13 +1204,25 @@ function calcSuggest() {
   const margin = parseFloat(document.getElementById('as-margin').value) || 0.7;
   const comm   = (parseFloat(document.getElementById('as-comm').value)  || 0) / 100;
 
-  let hrsA = 0, hrsS = 0, hrsQ = 0;
+  let hrsA = 0, hrsS = 0, hrsQ = 0, totUnits = 0, totVisitQ = 0, totVisitA = 0;
   active.forEach(e => {
     const n = state[e.id].qty, h = getCalcHours(e.id);
     hrsA += n * h.a;                 // 1 annual visit
     hrsS += n * (h.q + h.a);         // 1 quarterly + 1 annual visit
     hrsQ += n * (3 * h.q + h.a);     // 3 quarterly + 1 annual visit
+    totUnits += n;
+    totVisitQ += n * h.q;            // crew hours for one quarterly visit
+    totVisitA += n * h.a;            // crew hours for one annual visit
   });
+
+  // Totals row under the per-equipment hour inputs
+  const totEl = document.getElementById('calc-tot-units');
+  if (totEl) {
+    const fmtH = v => String(Math.round(v * 100) / 100);
+    totEl.textContent = totUnits;
+    document.getElementById('calc-tot-q').textContent = fmtH(totVisitQ);
+    document.getElementById('calc-tot-a').textContent = fmtH(totVisitA);
+  }
 
   const sell = (manHrs, visits) => {
     if (manHrs <= 0 || margin <= 0) return 0;
