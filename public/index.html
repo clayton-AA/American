@@ -153,6 +153,9 @@
   .my-prop-ds { padding: 4px 10px; background: white; color: var(--blue); border: 1px solid var(--border);
     border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
   .my-prop-ds:hover { background: var(--light-blue); border-color: var(--mid-blue); }
+  .my-prop-del { padding: 4px 10px; background: white; color: #b23b3b; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-left: auto; }
+  .my-prop-del:hover { background: #fdf1f1; border-color: #e3b6b6; }
   .my-props-empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 12px; }
   .my-props-loading { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 12px; }
 
@@ -262,7 +265,7 @@
 
     /* My Proposals cards */
     .my-prop-btns { flex-direction: column; gap: 6px; }
-    .my-prop-dl, .my-prop-ds { width: 100%; padding: 9px; font-size: 12px; text-align: center; }
+    .my-prop-dl, .my-prop-ds, .my-prop-del { width: 100%; padding: 9px; font-size: 12px; text-align: center; margin-left: 0; }
 
     /* Login box */
     .login-box { width: 90%; padding: 2rem 1.5rem; }
@@ -457,11 +460,19 @@
     <div class="section price-table-section">
       <div class="section-title">Service Pricing</div>
       <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">Enter 1-year prices below. 3-year (3% off) and 5-year (5% off) calculate automatically.</p>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;">Propose:</span>
+        <div class="calc-age-pills" style="flex:1;">
+          <div class="age-pill active" id="plan-pill-q" onclick="togglePlan('q')">Quarterly</div>
+          <div class="age-pill active" id="plan-pill-s" onclick="togglePlan('s')">Semi-Annual</div>
+          <div class="age-pill active" id="plan-pill-a" onclick="togglePlan('a')">Annual</div>
+        </div>
+      </div>
       <div class="price-grid">
         <div class="price-grid-header"></div>
-        <div class="price-grid-header">Quarterly</div>
-        <div class="price-grid-header">Semi-Annual</div>
-        <div class="price-grid-header">Annual</div>
+        <div class="price-grid-header" id="ph-q">Quarterly</div>
+        <div class="price-grid-header" id="ph-s">Semi-Annual</div>
+        <div class="price-grid-header" id="ph-a">Annual</div>
 
         <div class="price-grid-label">1 Year</div>
         <div class="price-grid-input"><input type="number" id="p-1-q" placeholder="0" min="0" step="1" oninput="calcPriceTable()"></div>
@@ -825,22 +836,28 @@ function refresh() {
     html += `</div></div>`;
   });
 
-  // ── Pricing preview (mirrors the PDF table) ──
+  // ── Pricing preview (mirrors the PDF table — enabled plans only) ──
   const pt = getPriceTable();
   if (pt.y1q || pt.y1s || pt.y1a) {
     const cell = (v) => v ? '$' + Math.round(v).toLocaleString() : '—';
+    const plans = [
+      { k:'q', label:'Quarterly',   v:[pt.y1q, pt.y3q, pt.y5q] },
+      { k:'s', label:'Semi-Annual', v:[pt.y1s, pt.y3s, pt.y5s] },
+      { k:'a', label:'Annual',      v:[pt.y1a, pt.y3a, pt.y5a] },
+    ].filter(p => planEnabled[p.k]);
+    const th = 'padding:7px 12px;text-align:right;font-weight:500;';
+    const td = 'padding:6px 12px;text-align:right;';
+    const row = (label, i, bg) => `<tr${bg ? ' style="background:#fafcff;"' : ''}><td style="padding:6px 12px;font-weight:500;">${label}</td>${plans.map(p => `<td style="${td}">${cell(p.v[i])}</td>`).join('')}</tr>`;
     html += `<div class="preview-eq">
       <div class="preview-eq-title">Service Pricing<span class="preview-eq-badge">3 yr −3% · 5 yr −5%</span></div>
       <table style="width:100%;border-collapse:collapse;border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;font-size:12px;">
         <tr style="background:var(--light-blue);color:var(--blue);">
           <th style="padding:7px 12px;text-align:left;font-weight:500;"></th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Quarterly</th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Semi-Annual</th>
-          <th style="padding:7px 12px;text-align:right;font-weight:500;">Annual</th>
+          ${plans.map(p => `<th style="${th}">${p.label}</th>`).join('')}
         </tr>
-        <tr><td style="padding:6px 12px;font-weight:500;">1 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y1a)}</td></tr>
-        <tr style="background:#fafcff;"><td style="padding:6px 12px;font-weight:500;">3 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y3a)}</td></tr>
-        <tr><td style="padding:6px 12px;font-weight:500;">5 Year</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5q)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5s)}</td><td style="padding:6px 12px;text-align:right;">${cell(pt.y5a)}</td></tr>
+        ${row('1 Year', 0, false)}
+        ${row('3 Year', 1, true)}
+        ${row('5 Year', 2, false)}
       </table>
     </div>`;
   }
@@ -947,6 +964,8 @@ function clearAll() {
   setDateToToday();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}) }; });
+  planEnabled = { q: true, s: true, a: true };
+  applyPlanUI();
   clearDraft();
   buildGrid();
   refresh();
@@ -972,7 +991,7 @@ function saveDraft() {
         || fields['inp-additions'] || fields['inp-exclusions']
         || fields['p-1-q'] || fields['p-1-s'] || fields['p-1-a'] || Object.keys(eq).length;
       if (!hasContent) { localStorage.removeItem(DRAFT_KEY); updateDraftStatus(null); return; }
-      const payload = { fields, eq, savedAt: Date.now() };
+      const payload = { fields, eq, plans: { ...planEnabled }, savedAt: Date.now() };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
       updateDraftStatus(payload.savedAt);
     } catch (e) { /* storage unavailable (private mode / full) — fail silently */ }
@@ -994,6 +1013,8 @@ function restoreDraft() {
       : { active: false, qty: 1, visits: e.defaultVisits };
     if (e.custom) state[e.id].label = (saved && saved.label) || '';
   });
+  planEnabled = { q: true, s: true, a: true, ...(d.plans || {}) };
+  applyPlanUI();
   updateDraftStatus(d.savedAt || null);
   return true;
 }
@@ -1053,13 +1074,42 @@ function calcPriceTable() {
   refresh(); // keep live preview in sync with pricing
 }
 
+// ── Service-plan toggles: which options (Quarterly / Semi-Annual / Annual)
+// this proposal offers. Disabled plans are dimmed in the grid and omitted
+// from the preview, PDF pricing table, and DocuSign checkbox layout.
+let planEnabled = { q: true, s: true, a: true };
+
+function togglePlan(k) {
+  const onCount = ['q','s','a'].filter(p => planEnabled[p]).length;
+  if (planEnabled[k] && onCount === 1) { toast('At least one service plan must stay enabled.', 'error'); return; }
+  planEnabled[k] = !planEnabled[k];
+  applyPlanUI();
+  calcPriceTable(); // re-renders preview + saves draft via refresh()
+}
+
+function applyPlanUI() {
+  ['q','s','a'].forEach(k => {
+    const on = planEnabled[k];
+    document.getElementById('plan-pill-' + k).classList.toggle('active', on);
+    document.getElementById('ph-' + k).style.opacity = on ? '' : '0.3';
+    const inp = document.getElementById('p-1-' + k);
+    inp.disabled = !on;
+    inp.parentElement.style.opacity = on ? '' : '0.3';
+    ['p-3-', 'p-5-'].forEach(pre => { document.getElementById(pre + k).style.opacity = on ? '' : '0.3'; });
+    // Dim the matching calculator suggestion tile
+    const tile = document.getElementById('calc-' + k);
+    if (tile && tile.parentElement) tile.parentElement.style.opacity = on ? '' : '0.35';
+  });
+}
+
 function getPriceTable() {
-  const get = (id) => parseFloat(document.getElementById(id).value) || 0;
+  const get = (id, k) => planEnabled[k] ? (parseFloat(document.getElementById(id).value) || 0) : 0;
   const calc = (v, disc) => v > 0 ? Math.round(v * disc) : null;
   return {
-    y1q: get('p-1-q'), y1s: get('p-1-s'), y1a: get('p-1-a'),
-    y3q: calc(get('p-1-q'), 0.97), y3s: calc(get('p-1-s'), 0.97), y3a: calc(get('p-1-a'), 0.97),
-    y5q: calc(get('p-1-q'), 0.95), y5s: calc(get('p-1-s'), 0.95), y5a: calc(get('p-1-a'), 0.95),
+    enabled: { q: planEnabled.q, s: planEnabled.s, a: planEnabled.a },
+    y1q: get('p-1-q','q'), y1s: get('p-1-s','s'), y1a: get('p-1-a','a'),
+    y3q: calc(get('p-1-q','q'), 0.97), y3s: calc(get('p-1-s','s'), 0.97), y3a: calc(get('p-1-a','a'), 0.97),
+    y5q: calc(get('p-1-q','q'), 0.95), y5s: calc(get('p-1-s','s'), 0.95), y5a: calc(get('p-1-a','a'), 0.95),
   };
 }
 
@@ -1245,9 +1295,9 @@ function calcSuggest() {
 
 function applySuggest() {
   const v = window._calcVals || {};
-  if (v.q > 0) document.getElementById('p-1-q').value = Math.round(v.q);
-  if (v.s > 0) document.getElementById('p-1-s').value = Math.round(v.s);
-  if (v.a > 0) document.getElementById('p-1-a').value = Math.round(v.a);
+  if (planEnabled.q && v.q > 0) document.getElementById('p-1-q').value = Math.round(v.q);
+  if (planEnabled.s && v.s > 0) document.getElementById('p-1-s').value = Math.round(v.s);
+  if (planEnabled.a && v.a > 0) document.getElementById('p-1-a').value = Math.round(v.a);
   calcPriceTable();
   toast('Suggested prices applied — edit the grid freely before generating.', 'success');
 }
@@ -1947,6 +1997,7 @@ function renderMyProposals(proposals) {
       <div class="my-prop-btns">
         <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
         <button class="my-prop-ds" onclick="openDSModalForProp(window._myPropsMap[${i}])">&#9993; Send via DocuSign</button>
+        <button class="my-prop-del" onclick="deleteMyProp(window._myPropsMap[${i}])">&#128465;</button>
       </div>
     </div>`;
   }).join('');
@@ -1958,6 +2009,37 @@ function redownloadProp(num) {
   a.href   = `/download/${num}?pw=${encodeURIComponent(pw)}`;
   a.download = `${num}_PMA.pdf`;
   a.click();
+}
+
+// Same optimistic remove + Undo pattern as the Dashboard tab's deleteProp()
+// (that name is taken by the dashboard script block — do not reuse it here)
+function deleteMyProp(p) {
+  if (!p) return;
+  const restore = () => {
+    myProposalsCache.push(p);
+    myProposalsCache.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
+    filterMyProps();
+  };
+  myProposalsCache = myProposalsCache.filter(x => x.proposalNumber !== p.proposalNumber);
+  filterMyProps();
+  toast('Deleted ' + p.proposalNumber + ' — ' + (p.facility||''), 'info', {
+    actionLabel: 'Undo',
+    duration: 6000,
+    onAction: restore,
+    onTimeout: async () => {
+      try {
+        const resp = await fetch('/delete-proposal', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'x-site-password': sessionStorage.getItem('sitePassword') || '' },
+          body:    JSON.stringify({ proposalNumber: p.proposalNumber }),
+        });
+        if (!resp.ok) throw new Error();
+      } catch(e) {
+        restore();
+        toast('Server delete failed for ' + p.proposalNumber + ' — proposal restored.', 'error', { duration: 8000 });
+      }
+    }
+  });
 }
 
 // ── DocuSign modal ────────────────────────────────────────────────────────

@@ -79,8 +79,12 @@ async function getDSToken() {
   return resp.body.access_token;
 }
 
-async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail, date }) {
+async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEmail, repName, repEmail, date, plans }) {
   const token = await getDSToken();
+
+  // Which service plans (pricing-table columns) this proposal offers, in
+  // column order. Older callers omit `plans` → all three (original layout).
+  const planKeys = Array.isArray(plans) && plans.length ? plans : ['q', 's', 'a'];
 
   // Dynamically detect which page the execution/pricing section is on
   // Structure: Cover(1) + Agreement(1-2 pages) + Execution(1 page) + Scope(1) + TC(2-3)
@@ -108,6 +112,25 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
   }
 
   const p = '3'; // Execution always on page 3
+
+  // Price-option checkboxes — one per enabled plan column × term row.
+  // Column x positions follow the printed table geometry: content starts at
+  // 36pt (0.5in margin), the Term column is 18% of the 540pt content width,
+  // and the enabled plans split the remaining 82% evenly. The +15pt offset
+  // sits the box just right of each cell's midpoint. The hand-tuned
+  // 3-column values (224/372/515) are kept exactly for the all-three layout.
+  const TUNED_X3 = ['224', '372', '515'];
+  const planColX = (i) => planKeys.length === 3 ? TUNED_X3[i]
+    : String(Math.round(36 + 97.2 + (i + 0.5) * (442.8 / planKeys.length) + 15));
+  const PLAN_LBL = { q: 'Q', s: 'SA', a: 'A' };
+  const TERM_ROWS = [['1yr', '108'], ['3yr', '137'], ['5yr', '164']];
+  const priceCheckboxes = [];
+  planKeys.forEach((k, i) => {
+    TERM_ROWS.forEach(([term, y]) => {
+      priceCheckboxes.push({ documentId:'1', pageNumber:p, xPosition: planColX(i), yPosition: y, tabLabel: PLAN_LBL[k] + term });
+    });
+  });
+
   const envelope = {
     emailSubject: `Preventative Maintenance Agreement — Please Sign`,
     emailBlurb:   `Please review and sign your Preventative Maintenance Agreement with American Air, Inc. Once signed it will be routed to your account manager for countersignature.`,
@@ -128,15 +151,7 @@ async function createDSEnvelope({ pdfBuffer, filename, customerName, customerEma
             ],
             dateSignedTabs: [{ documentId:'1', pageNumber:p, xPosition:'49', yPosition:'444' }],
             checkboxTabs: [
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'108', tabLabel:'Q1yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'108', tabLabel:'SA1yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'108', tabLabel:'A1yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'137', tabLabel:'Q3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'137', tabLabel:'SA3yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'137', tabLabel:'A3yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'224', yPosition:'164', tabLabel:'Q5yr'       },
-              { documentId:'1', pageNumber:p, xPosition:'372', yPosition:'164', tabLabel:'SA5yr'      },
-              { documentId:'1', pageNumber:p, xPosition:'515', yPosition:'164', tabLabel:'A5yr'       },
+              ...priceCheckboxes,
               { documentId:'1', pageNumber:p, xPosition:'216', yPosition:'227', tabLabel:'PayMonthly' },
               { documentId:'1', pageNumber:p, xPosition:'328', yPosition:'227', tabLabel:'PayService' },
               { documentId:'1', pageNumber:p, xPosition:'477', yPosition:'227', tabLabel:'PayUpfront' },
@@ -604,6 +619,10 @@ function eqDisplayName(e) {
   return '';
 }
 
+// Enabled service-plan keys (pricing-table columns) in column order.
+// Missing flags mean enabled — older payloads offer all three.
+const enabledPlanKeys = (pt) => ['q', 's', 'a'].filter(k => !pt || !pt.enabled || pt.enabled[k] !== false);
+
 function buildHTML(data) {
   const { facility, address, contact, salesName, salesPhone, salesEmail, date, priceTable, additions, exclusions, equipment, proposalNumber } = data;
   const pt = priceTable || {};
@@ -629,36 +648,39 @@ function buildHTML(data) {
       <div class="benefit">&#10003;&nbsp; Dedicated Account Manager</div>
     </div>`;
 
-  // ── Pricing selection table ─────────────────────────────────────────────
+  // ── Pricing selection table (enabled plans only) ────────────────────────
+  // pt.enabled = { q, s, a } from the client's plan toggles; a missing flag
+  // means enabled (backward compatible with older payloads).
+  const PLAN_DEFS = [
+    { k:'q', label:'Quarterly',   sub:'4 visits/yr', vals:[pt.y1q, pt.y3q, pt.y5q], anc:['q1y','q3y','q5y'] },
+    { k:'s', label:'Semi-Annual', sub:'2 visits/yr', vals:[pt.y1s, pt.y3s, pt.y5s], anc:['sa1y','sa3y','sa5y'] },
+    { k:'a', label:'Annual',      sub:'1 visit/yr',  vals:[pt.y1a, pt.y3a, pt.y5a], anc:['a1y','a3y','a5y'] },
+  ];
+  const planEn = pt.enabled || {};
+  const plans = PLAN_DEFS.filter(p => planEn[p.k] !== false);
+  const planColW = Math.floor(82 / plans.length);
+  const priceCell = (p, ti) => `<td class="price-cell">${fmtP(p.vals[ti])}<span class="ds-anchor" id="anc-${p.anc[ti]}">__${p.anc[ti]}__</span></td>`;
   const pricingTableHTML = hasPrices ? `
   <div class="section-label">Service agreement options</div>
   <table class="pricing-sel-table">
     <thead>
       <tr>
         <th style="width:18%">Term</th>
-        <th style="width:26%">Quarterly<br><span style="font-size:9px;font-weight:400;opacity:0.8">(4 visits/yr)</span></th>
-        <th style="width:26%">Semi-Annual<br><span style="font-size:9px;font-weight:400;opacity:0.8">(2 visits/yr)</span></th>
-        <th style="width:26%">Annual<br><span style="font-size:9px;font-weight:400;opacity:0.8">(1 visit/yr)</span></th>
+        ${plans.map(p => `<th style="width:${planColW}%">${p.label}<br><span style="font-size:9px;font-weight:400;opacity:0.8">(${p.sub})</span></th>`).join('')}
       </tr>
     </thead>
     <tbody>
       <tr>
         <td class="term-label">1 Year</td>
-        <td class="price-cell">${fmtP(pt.y1q)}<span class="ds-anchor" id="anc-q1y">__q1y__</span></td>
-        <td class="price-cell">${fmtP(pt.y1s)}<span class="ds-anchor" id="anc-sa1y">__sa1y__</span></td>
-        <td class="price-cell">${fmtP(pt.y1a)}<span class="ds-anchor" id="anc-a1y">__a1y__</span></td>
+        ${plans.map(p => priceCell(p, 0)).join('')}
       </tr>
       <tr class="disc-row">
         <td class="term-label">3 Year <span class="disc-badge">3% off</span></td>
-        <td class="price-cell">${fmtP(pt.y3q)}<span class="ds-anchor" id="anc-q3y">__q3y__</span></td>
-        <td class="price-cell">${fmtP(pt.y3s)}<span class="ds-anchor" id="anc-sa3y">__sa3y__</span></td>
-        <td class="price-cell">${fmtP(pt.y3a)}<span class="ds-anchor" id="anc-a3y">__a3y__</span></td>
+        ${plans.map(p => priceCell(p, 1)).join('')}
       </tr>
       <tr class="disc-row">
         <td class="term-label">5 Year <span class="disc-badge">5% off</span></td>
-        <td class="price-cell">${fmtP(pt.y5q)}<span class="ds-anchor" id="anc-q5y">__q5y__</span></td>
-        <td class="price-cell">${fmtP(pt.y5s)}<span class="ds-anchor" id="anc-sa5y">__sa5y__</span></td>
-        <td class="price-cell">${fmtP(pt.y5a)}<span class="ds-anchor" id="anc-a5y">__a5y__</span></td>
+        ${plans.map(p => priceCell(p, 2)).join('')}
       </tr>
     </tbody>
   </table>
@@ -1333,6 +1355,7 @@ app.post('/generate', async (req, res) => {
         duration:       data.duration,
         equipment:      eqSummary,
         annualValue:    data.annualValue || 0,
+        plans:          enabledPlanKeys(data.priceTable),
         status:         'open',
         generatedAt:    new Date().toISOString(),
       });
@@ -1540,10 +1563,10 @@ app.post('/send-docusign', async (req, res) => {
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
       const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}`; if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
-      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
+      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
-    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date });
+    const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date, plans:enabledPlanKeys(data.priceTable) });
     res.json({ ok:true, envelopeId, proposalNumber:data.proposalNumber });
   } catch(err) { console.error('DocuSign send error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
@@ -1556,7 +1579,15 @@ app.post('/resend-docusign', async (req, res) => {
     const filePath = path.join(DATA_DIR, 'pdfs', `${proposalNumber}.pdf`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error:'PDF not found — please regenerate the proposal first.' });
     const pdfBuffer  = fs.readFileSync(filePath);
-    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail:'Clayton@americanairinc.com', date:'' });
+    // The stored PDF's pricing table has whatever plan columns it was generated
+    // with — recover them from the proposal log so checkboxes line up.
+    let plans = null;
+    try {
+      const log = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'proposal_log.json'), 'utf8'));
+      const entry = log.find(x => x.proposalNumber === proposalNumber);
+      if (entry && Array.isArray(entry.plans) && entry.plans.length) plans = entry.plans;
+    } catch(e) {}
+    const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail:'Clayton@americanairinc.com', date:'', plans });
     res.json({ ok:true, envelopeId, proposalNumber });
   } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });

@@ -123,6 +123,20 @@ excludes it.
 - Pricing: only the **1-year** column has inputs (`p-1-q/s/a`); the 3- and
   5-year columns are **computed** display cells (`p-3-*`, `p-5-*`) via
   `calcPriceTable()` (3yr = 97%, 5yr = 95% of 1yr).
+- **Plan toggles** (`planEnabled {q,s,a}`, pills above the price grid): control
+  which service options a proposal offers. Disabled plans are dimmed in the
+  grid, zeroed in `getPriceTable()` (which also sends `enabled` flags), and
+  omitted from the preview and the PDF pricing table (`buildHTML` filters
+  columns). `createDSEnvelope({plans})` computes the price-checkbox x
+  positions from the enabled-column layout — the hand-tuned 3-column values
+  (224/372/515) are kept exactly when all three are on. Plan keys are stored
+  on proposal-log entries; `/resend-docusign` recovers them from the log so
+  checkboxes line up with the stored PDF. At least one plan must stay enabled.
+- **Deleting proposals:** the My Proposals tab uses `deleteMyProp()`
+  (optimistic remove + Undo toast, server delete on toast timeout). The name
+  `deleteProp()` is TAKEN by the dashboard script block later in the file —
+  function declarations share the global scope across script blocks, so a
+  same-named function in block 1 is silently overridden.
 
 ## Conventions & cautions
 
