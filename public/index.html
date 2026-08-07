@@ -923,6 +923,7 @@ async function generate() {
       equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
       surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
+      formState:  serializeForm(),
     };
 
     const resp = await fetch('/generate', {
@@ -977,21 +978,41 @@ function clearAll() {
 // Salesperson fields and cost assumptions persist via their own keys already.
 const DRAFT_KEY = 'aa_draft_v1';
 const DRAFT_FIELDS = ['inp-facility','inp-address','inp-contact','inp-date','inp-additions','inp-exclusions','p-1-q','p-1-s','p-1-a'];
+const SALES_FIELDS = ['inp-sales-name','inp-sales-phone','inp-sales-email'];
 let _draftTimer = null;
+
+// Snapshot of everything needed to rebuild the New Proposal form. Same shape
+// as the aa_draft_v1 draft; also sent as `formState` with /generate and
+// /send-docusign so a logged proposal can be reopened for editing later.
+function serializeForm() {
+  const fields = {};
+  DRAFT_FIELDS.concat(SALES_FIELDS).forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
+  const eq = {};
+  EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; } });
+  return { fields, eq, plans: { ...planEnabled } };
+}
+
+// Set equipment card state from a saved {id: {qty, visits, label?}} map
+function applyEqState(eqMap) {
+  EQ_DATA.forEach(e => {
+    const saved = eqMap && eqMap[e.id];
+    state[e.id] = saved
+      ? { active: true, qty: saved.qty || 1, visits: saved.visits || e.defaultVisits }
+      : { active: false, qty: 1, visits: e.defaultVisits };
+    if (e.custom) state[e.id].label = (saved && saved.label) || '';
+  });
+}
 
 function saveDraft() {
   clearTimeout(_draftTimer);
   _draftTimer = setTimeout(() => {
     try {
-      const fields = {};
-      DRAFT_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
-      const eq = {};
-      EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; } });
-      const hasContent = fields['inp-facility'] || fields['inp-address'] || fields['inp-contact']
-        || fields['inp-additions'] || fields['inp-exclusions']
-        || fields['p-1-q'] || fields['p-1-s'] || fields['p-1-a'] || Object.keys(eq).length;
+      const f = serializeForm();
+      const hasContent = f.fields['inp-facility'] || f.fields['inp-address'] || f.fields['inp-contact']
+        || f.fields['inp-additions'] || f.fields['inp-exclusions']
+        || f.fields['p-1-q'] || f.fields['p-1-s'] || f.fields['p-1-a'] || Object.keys(f.eq).length;
       if (!hasContent) { localStorage.removeItem(DRAFT_KEY); updateDraftStatus(null); return; }
-      const payload = { fields, eq, plans: { ...planEnabled }, savedAt: Date.now() };
+      const payload = { ...f, savedAt: Date.now() };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
       updateDraftStatus(payload.savedAt);
     } catch (e) { /* storage unavailable (private mode / full) — fail silently */ }
@@ -1006,13 +1027,7 @@ function restoreDraft() {
     const el = document.getElementById(id);
     if (el && val != null && val !== '') el.value = val;
   });
-  EQ_DATA.forEach(e => {
-    const saved = d.eq && d.eq[e.id];
-    state[e.id] = saved
-      ? { active: true, qty: saved.qty || 1, visits: saved.visits || e.defaultVisits }
-      : { active: false, qty: 1, visits: e.defaultVisits };
-    if (e.custom) state[e.id].label = (saved && saved.label) || '';
-  });
+  applyEqState(d.eq);
   planEnabled = { q: true, s: true, a: true, ...(d.plans || {}) };
   applyPlanUI();
   updateDraftStatus(d.savedAt || null);
@@ -1996,6 +2011,7 @@ function renderMyProposals(proposals) {
       ${p.contact ? `<div class="my-prop-contact">${esc(p.contact)}</div>` : ''}
       <div class="my-prop-btns">
         <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
+        ${p.formState ? `<button class="my-prop-ds" onclick="editProposal(window._myPropsMap[${i}])">&#9998; Edit</button>` : ''}
         <button class="my-prop-ds" onclick="openDSModalForProp(window._myPropsMap[${i}])">&#9993; Send via DocuSign</button>
         <button class="my-prop-del" onclick="deleteMyProp(window._myPropsMap[${i}])">&#128465;</button>
       </div>
@@ -2009,6 +2025,34 @@ function redownloadProp(num) {
   a.href   = `/download/${num}?pw=${encodeURIComponent(pw)}`;
   a.download = `${num}_PMA.pdf`;
   a.click();
+}
+
+// Reopen a logged proposal in the New Proposal form. Uses the formState
+// snapshot stored with the proposal (same shape as the auto-save draft).
+// Generating from the loaded form creates a NEW proposal number — the
+// original stays in the list until deleted.
+function editProposal(p) {
+  if (!p || !p.formState || !p.formState.fields) {
+    toast('This proposal predates editing — no saved form data.', 'info');
+    return;
+  }
+  const dirty = gv('inp-facility') || gv('inp-contact') || gv('inp-address')
+    || EQ_DATA.some(e => state[e.id].active);
+  if (dirty && !confirm(`Load ${p.proposalNumber} into the form?\n\nYour current in-progress proposal will be replaced.`)) return;
+  const f = p.formState;
+  // Exact restore: empty saved values clear the field (unlike draft restore)
+  DRAFT_FIELDS.concat(SALES_FIELDS).forEach(id => {
+    const el = document.getElementById(id);
+    if (el && id in (f.fields || {})) el.value = f.fields[id] ?? '';
+  });
+  applyEqState(f.eq);
+  planEnabled = { q: true, s: true, a: true, ...(f.plans || {}) };
+  applyPlanUI();
+  buildGrid();
+  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+  calcPriceTable(); // recomputes 3/5-yr cells, refreshes preview, saves draft
+  switchTab('new');
+  toast(`Loaded ${p.proposalNumber} — generating will create a new proposal number.`, 'info', { duration: 6000 });
 }
 
 // Same optimistic remove + Undo pattern as the Dashboard tab's deleteProp()
@@ -2111,6 +2155,7 @@ async function sendDocuSign() {
           equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
           surveyUnits: surveyPayloadUnits(),
           customerName, customerEmail,
+          formState: serializeForm(),
         }),
       });
     }

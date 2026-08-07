@@ -137,6 +137,14 @@ excludes it.
   `deleteProp()` is TAKEN by the dashboard script block later in the file —
   function declarations share the global scope across script blocks, so a
   same-named function in block 1 is silently overridden.
+- **Editing proposals:** `/generate` and `/send-docusign` payloads carry
+  `formState` (built by `serializeForm()`, same `{fields, eq, plans}` shape as
+  the `aa_draft_v1` draft), which the server stores on the log entry. The My
+  Proposals ✎ Edit button (`editProposal()`) reloads that snapshot into the
+  form — exact restore, including empty fields — and warns before replacing a
+  dirty form. Generating afterward creates a NEW proposal number; the old one
+  stays until deleted. Entries logged before this feature have no `formState`
+  and get no Edit button.
 
 ## Conventions & cautions
 
