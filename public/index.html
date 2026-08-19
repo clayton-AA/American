@@ -189,6 +189,8 @@
   .dash-prop-value { font-size: 11px; font-weight: 500; color: var(--blue); margin-left: auto; }
   .dash-del-btn { padding: 4px 10px; background: white; color: #999; border: 1px solid #ddd; border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-left: auto; }
   .dash-del-btn:hover { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
+  .dash-edit-btn { padding: 4px 10px; background: var(--light-blue); color: var(--blue); border: 1px solid var(--mid-blue); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .dash-edit-btn:hover { background: var(--mid-blue); }
 
 
   /* ── Renewals ── */
@@ -261,7 +263,7 @@
 
     /* Dashboard cards */
     .dash-prop-btns { flex-wrap: wrap; gap: 6px; }
-    .dash-won-btn, .dash-lost-btn, .dash-del-btn { flex: 1; text-align: center; padding: 7px 8px; font-size: 12px; }
+    .dash-won-btn, .dash-lost-btn, .dash-del-btn, .dash-edit-btn { flex: 1; text-align: center; padding: 7px 8px; font-size: 12px; }
 
     /* My Proposals cards */
     .my-prop-btns { flex-direction: column; gap: 6px; }
@@ -597,8 +599,12 @@
 
     <!-- ══ MY PROPOSALS TAB ══ -->
     <div class="tab-pane" id="pane-mine">
-      <div class="my-props-filter">
-        <input type="text" id="mine-search" placeholder="Filter by facility or proposal #..." oninput="filterMyProps()">
+      <div class="my-props-filter" style="display:flex;gap:8px;align-items:center;">
+        <div class="calc-age-pills" style="flex:0 0 170px;">
+          <div class="age-pill active" id="scope-mine" onclick="setPropsScope('mine')">Mine</div>
+          <div class="age-pill" id="scope-all" onclick="setPropsScope('all')">All reps</div>
+        </div>
+        <input type="text" id="mine-search" placeholder="Filter by facility or proposal #..." oninput="filterMyProps()" style="flex:1;min-width:0;">
       </div>
       <div class="my-props-loading" id="mine-loading" style="display:none;">Loading...</div>
       <div class="my-props-list" id="mine-list"></div>
@@ -1934,10 +1940,29 @@ function switchTab(tab) {
 }
 
 // ── My Proposals tab ──────────────────────────────────────────────────────
-let myProposalsCache = [];
+let myProposalsCache = [];   // currently-scoped list (the search box filters within this)
+let myPropsAll = [];         // full unfiltered server response
+let myPropsScope = 'mine';   // 'mine' = match Salesperson Name field | 'all' = every rep
+try { myPropsScope = localStorage.getItem('aa_props_scope') || 'mine'; } catch(e) {}
+
+function setPropsScope(s) {
+  myPropsScope = s;
+  try { localStorage.setItem('aa_props_scope', s); } catch(e) {}
+  applyPropsScope();
+}
+
+// Re-derive the scoped list from myPropsAll + scope pills, then re-render
+function applyPropsScope() {
+  const repName = gv('inp-sales-name').trim().toLowerCase();
+  myProposalsCache = (myPropsScope === 'mine' && repName)
+    ? myPropsAll.filter(p => (p.salesName||'').toLowerCase() === repName)
+    : myPropsAll.slice();
+  document.getElementById('scope-mine').classList.toggle('active', myPropsScope === 'mine');
+  document.getElementById('scope-all').classList.toggle('active', myPropsScope !== 'mine');
+  filterMyProps();
+}
 
 async function loadMyProposals() {
-  const repName = gv('inp-sales-name').trim().toLowerCase();
   const loading   = document.getElementById('mine-loading');
   const list      = document.getElementById('mine-list');
   const empty     = document.getElementById('mine-empty');
@@ -1953,13 +1978,7 @@ async function loadMyProposals() {
       headers: { 'x-site-password': sessionStorage.getItem('sitePassword') || '' }
     });
     if (!resp.ok) { loading.style.display = 'none'; list.innerHTML = '<div class="my-props-empty">Could not load proposals.</div>'; if (searchEl) searchEl.disabled = false; return; }
-    const all = await resp.json();
-
-    // Filter to this rep's proposals — match on salesName if filled in, else show all
-    myProposalsCache = repName
-      ? all.filter(p => (p.salesName||'').toLowerCase() === repName)
-      : all;
-
+    myPropsAll = await resp.json();
   } catch(e) {
     loading.style.display = 'none';
     list.innerHTML = '<div class="my-props-empty">Error loading proposals.</div>';
@@ -1969,7 +1988,7 @@ async function loadMyProposals() {
 
   loading.style.display = 'none';
   if (searchEl) searchEl.disabled = false;
-  renderMyProposals(myProposalsCache);
+  applyPropsScope();
 }
 
 function filterMyProps() {
@@ -1989,6 +2008,9 @@ function renderMyProposals(proposals) {
 
   if (proposals.length === 0) {
     list.innerHTML = '';
+    empty.innerHTML = myPropsScope === 'mine'
+      ? 'No proposals found for your name.<br>Make sure it matches the Salesperson Name on the New Proposal tab, or switch to All reps.'
+      : 'No proposals yet.';
     empty.style.display = 'block';
     return;
   }
@@ -2009,6 +2031,7 @@ function renderMyProposals(proposals) {
       </div>
       <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
       ${p.contact ? `<div class="my-prop-contact">${esc(p.contact)}</div>` : ''}
+      ${myPropsScope === 'all' && p.salesName ? `<div class="my-prop-contact" style="color:#999;">Rep: ${esc(p.salesName)}</div>` : ''}
       <div class="my-prop-btns">
         <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
         ${p.formState ? `<button class="my-prop-ds" onclick="editProposal(window._myPropsMap[${i}])">&#9998; Edit</button>` : ''}
@@ -2060,12 +2083,12 @@ function editProposal(p) {
 function deleteMyProp(p) {
   if (!p) return;
   const restore = () => {
-    myProposalsCache.push(p);
-    myProposalsCache.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
-    filterMyProps();
+    myPropsAll.push(p);
+    myPropsAll.sort((a,b) => new Date(b.generatedAt||b.date||0) - new Date(a.generatedAt||a.date||0));
+    applyPropsScope();
   };
-  myProposalsCache = myProposalsCache.filter(x => x.proposalNumber !== p.proposalNumber);
-  filterMyProps();
+  myPropsAll = myPropsAll.filter(x => x.proposalNumber !== p.proposalNumber);
+  applyPropsScope();
   toast('Deleted ' + p.proposalNumber + ' — ' + (p.facility||''), 'info', {
     actionLabel: 'Undo',
     duration: 6000,
@@ -2261,12 +2284,13 @@ function renderDashboard(proposals) {
     const val     = p.annualValue ? '<span class="dash-prop-value">$'+parseFloat(p.annualValue).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})+'/yr</span>' : '';
     const wonBtn  = status !== 'won'  ? '<button class="dash-won-btn"  onclick="markStatus('+i+',\'won\')">Mark Won</button>' : '';
     const lostBtn = status !== 'lost' ? '<button class="dash-lost-btn" onclick="markStatus('+i+',\'lost\')">Mark Lost</button>' : '';
+    const editBtn = p.formState ? '<button class="dash-edit-btn" onclick="editProposal(window._dashMap['+i+'])">&#9998; Edit</button>' : '';
     const delBtn  = '<button class="dash-del-btn" onclick="deleteProp('+i+')">🗑 Delete</button>';
     return '<div class="dash-prop-card" id="dash-card-'+i+'">'
       +'<div class="dash-prop-top"><span class="dash-prop-num">'+esc(p.proposalNumber||'—')+'</span><span class="dash-prop-date">'+esc(d)+'</span></div>'
       +'<div class="dash-prop-facility">'+esc(p.facility||'—')+'</div>'
       +'<div class="dash-prop-meta">'+esc(p.salesName||'')+(p.contact?' · '+esc(p.contact):'')+'</div>'
-      +'<div class="dash-prop-btns">'+badge+wonBtn+lostBtn+val+delBtn+'</div>'
+      +'<div class="dash-prop-btns">'+badge+editBtn+wonBtn+lostBtn+val+delBtn+'</div>'
       +'</div>';
   }).join('');
 }
