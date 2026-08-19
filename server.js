@@ -1396,12 +1396,27 @@ app.post('/update-proposal-status', (req, res) => {
   const SITE_PW  = process.env.SITE_PASSWORD  || 'americanair';
   const ADMIN_PW = process.env.ADMIN_PASSWORD || 'aaadmin';
   if (pw !== SITE_PW && pw !== ADMIN_PW) return res.status(401).json({ error: 'Unauthorized' });
-  const { proposalNumber, status } = req.body;
+  const { proposalNumber, status, wonOption } = req.body;
   if (!proposalNumber || !['won','lost','sent','open'].includes(status)) return res.status(400).json({ error: 'Invalid' });
   const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
   let log = [];
   try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
-  log = log.map(p => p.proposalNumber === proposalNumber ? { ...p, status } : p);
+  log = log.map(p => {
+    if (p.proposalNumber !== proposalNumber) return p;
+    const next = { ...p, status };
+    // wonOption = { plan: 'q'|'s'|'a', term: 1|3|5, price: $/yr or null } —
+    // which pricing-table cell the customer actually signed for
+    if (status === 'won' && wonOption && ['q','s','a'].includes(wonOption.plan) && [1,3,5].includes(wonOption.term)) {
+      next.wonOption = {
+        plan:  wonOption.plan,
+        term:  wonOption.term,
+        price: (typeof wonOption.price === 'number' && isFinite(wonOption.price)) ? wonOption.price : null,
+      };
+    } else if (status !== 'won') {
+      delete next.wonOption; // stale option makes no sense on a non-won proposal
+    }
+    return next;
+  });
   fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
   res.json({ ok: true });
 });

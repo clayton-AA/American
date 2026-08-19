@@ -137,6 +137,13 @@ excludes it.
   `deleteProp()` is TAKEN by the dashboard script block later in the file —
   function declarations share the global scope across script blocks, so a
   same-named function in block 1 is silently overridden.
+- **Mark Won:** the Dashboard's Mark Won button opens a modal
+  (`openWonModal()`) asking which plan/term the customer signed for; the
+  choice is stored as `wonOption {plan, term, price}` on the log entry via
+  `/update-proposal-status` (any non-won status clears it). The Sold KPI and
+  the won card's value chip prefer `wonOption.price` ($/yr) over the pre-sale
+  `annualValue`. Price prefills from `formState` 1-year prices × the 3/5-yr
+  discounts and is editable for negotiated amounts.
 - **Editing proposals:** `/generate` and `/send-docusign` payloads carry
   `formState` (built by `serializeForm()`, same `{fields, eq, plans}` shape as
   the `aa_draft_v1` draft), which the server stores on the log entry. The My

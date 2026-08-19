@@ -2223,6 +2223,28 @@ async function sendDocuSign() {
   </div>
 </div>
 
+<!-- Mark-Won modal: capture which plan/term the customer chose -->
+<div class="ds-modal-overlay" id="won-modal-overlay">
+  <div class="ds-modal">
+    <h3>&#10003; Mark as Won</h3>
+    <p id="won-modal-sub"></p>
+    <label>Service plan they chose</label>
+    <div class="calc-age-pills" id="won-plan-pills"></div>
+    <label>Term</label>
+    <div class="calc-age-pills" id="won-term-pills">
+      <div class="age-pill" onclick="wonPickTerm(1, this)">1 Year</div>
+      <div class="age-pill" onclick="wonPickTerm(3, this)">3 Year</div>
+      <div class="age-pill" onclick="wonPickTerm(5, this)">5 Year</div>
+    </div>
+    <label>Contract value ($ per year)</label>
+    <input type="number" id="won-price" min="0" step="1" placeholder="Sold price per year">
+    <div class="ds-modal-btns">
+      <button class="ds-cancel-btn" onclick="closeWonModal()">Cancel</button>
+      <button class="ds-send-btn" onclick="confirmWon()"><span>Mark Won</span></button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Dashboard tab ─────────────────────────────────────────────────────────
 let dashCache = [];
@@ -2259,7 +2281,8 @@ function renderDashboard(proposals) {
   const won  = proposals.filter(p => p.status === 'won');
   const open = proposals.filter(p => !p.status || p.status === 'sent' || p.status === 'open');
 
-  const soldVal = won.reduce((s,p) => s + (parseFloat(p.annualValue)||0), 0);
+  // Sold $ prefers the actual chosen option's price over the pre-sale annualValue
+  const soldVal = won.reduce((s,p) => s + (parseFloat(p.wonOption && p.wonOption.price != null ? p.wonOption.price : p.annualValue)||0), 0);
   const pipeVal = open.reduce((s,p) => s + (parseFloat(p.annualValue)||0), 0);
 
   document.getElementById('ds-sold-val').textContent   = soldVal > 0 ? '$'+soldVal.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) : '—';
@@ -2281,8 +2304,11 @@ function renderDashboard(proposals) {
     const status = p.status || (p.sentViaDocuSign ? 'sent' : 'open');
     const statusLabels = { won:'✓ Won', lost:'✗ Lost', sent:'Sent', open:'Open' };
     const badge   = '<span class="dash-status-badge '+status+'">'+(statusLabels[status]||status)+'</span>';
-    const val     = p.annualValue ? '<span class="dash-prop-value">$'+parseFloat(p.annualValue).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})+'/yr</span>' : '';
-    const wonBtn  = status !== 'won'  ? '<button class="dash-won-btn"  onclick="markStatus('+i+',\'won\')">Mark Won</button>' : '';
+    const wo      = status === 'won' && p.wonOption ? p.wonOption : null;
+    const val     = wo
+      ? '<span class="dash-prop-value">'+(wo.price != null ? '$'+parseFloat(wo.price).toLocaleString(undefined,{maximumFractionDigits:0})+'/yr · ' : '')+(WON_PLAN_LABELS[wo.plan]||wo.plan)+' · '+wo.term+'-yr</span>'
+      : (p.annualValue ? '<span class="dash-prop-value">$'+parseFloat(p.annualValue).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})+'/yr</span>' : '');
+    const wonBtn  = status !== 'won'  ? '<button class="dash-won-btn"  onclick="openWonModal('+i+')">Mark Won</button>' : '';
     const lostBtn = status !== 'lost' ? '<button class="dash-lost-btn" onclick="markStatus('+i+',\'lost\')">Mark Lost</button>' : '';
     const editBtn = p.formState ? '<button class="dash-edit-btn" onclick="editProposal(window._dashMap['+i+'])">&#9998; Edit</button>' : '';
     const delBtn  = '<button class="dash-del-btn" onclick="deleteProp('+i+')">🗑 Delete</button>';
@@ -2302,19 +2328,103 @@ function dashFiltered() {
     (c.salesName||'').toLowerCase().includes(q)||(c.contact||'').toLowerCase().includes(q)) : dashCache;
 }
 
-async function markStatus(i, status) {
+// ── Mark-Won modal: which plan/term did the customer choose ───────────────
+const WON_PLAN_LABELS = { q: 'Quarterly', s: 'Semi-Annual', a: 'Annual' };
+let _wonIdx = -1, _wonPlan = 'q', _wonTerm = 1;
+
+function openWonModal(i) {
+  const p = window._dashMap[i];
+  if (!p) return;
+  _wonIdx = i;
+  document.getElementById('won-modal-sub').textContent =
+    p.proposalNumber + (p.facility ? ' — ' + p.facility : '') + '. Pick the option the customer signed for.';
+  // Only offer the plans this proposal actually included
+  const offered = Array.isArray(p.plans) && p.plans.length ? p.plans : ['q','s','a'];
+  const pills = document.getElementById('won-plan-pills');
+  pills.innerHTML = '';
+  offered.forEach(k => {
+    const d = document.createElement('div');
+    d.className = 'age-pill';
+    d.textContent = WON_PLAN_LABELS[k] || k;
+    d.onclick = function() { wonPickPlan(k, this); };
+    d.dataset.plan = k;
+    pills.appendChild(d);
+  });
+  // Preselect: keep a previous choice if re-marking, else first offered plan, 1-year
+  const prev = p.wonOption || {};
+  _wonPlan = offered.includes(prev.plan) ? prev.plan : offered[0];
+  _wonTerm = [1,3,5].includes(prev.term) ? prev.term : 1;
+  Array.from(pills.children).forEach(el => el.classList.toggle('active', el.dataset.plan === _wonPlan));
+  Array.from(document.getElementById('won-term-pills').children).forEach((el, idx) =>
+    el.classList.toggle('active', [1,3,5][idx] === _wonTerm));
+  wonCalcPrice(prev.price);
+  document.getElementById('won-modal-overlay').classList.add('visible');
+}
+
+function closeWonModal() {
+  document.getElementById('won-modal-overlay').classList.remove('visible');
+  _wonIdx = -1;
+}
+
+function wonPickPlan(k, el) {
+  _wonPlan = k;
+  Array.from(el.parentElement.children).forEach(x => x.classList.toggle('active', x === el));
+  wonCalcPrice();
+}
+
+function wonPickTerm(t, el) {
+  _wonTerm = t;
+  Array.from(el.parentElement.children).forEach(x => x.classList.toggle('active', x === el));
+  wonCalcPrice();
+}
+
+// Prefill the sold $/yr from the proposal's stored 1-year prices (3yr −3%,
+// 5yr −5% — same math as the PDF table). Editable for negotiated amounts.
+function wonCalcPrice(explicit) {
+  const p = window._dashMap[_wonIdx];
+  const el = document.getElementById('won-price');
+  if (!p) { el.value = ''; return; }
+  if (explicit != null) { el.value = Math.round(explicit); return; }
+  const f = p.formState && p.formState.fields;
+  const base = f ? parseFloat(f['p-1-' + _wonPlan]) : NaN;
+  if (!isNaN(base) && base > 0) {
+    const disc = _wonTerm === 3 ? 0.97 : _wonTerm === 5 ? 0.95 : 1;
+    el.value = Math.round(base * disc);
+  } else if (_wonPlan === 'a' && _wonTerm === 1 && p.annualValue) {
+    el.value = Math.round(p.annualValue);
+  } else {
+    el.value = '';
+  }
+}
+
+async function confirmWon() {
+  const i = _wonIdx;
+  const raw = document.getElementById('won-price').value;
+  const price = raw === '' ? null : (parseFloat(raw) || 0);
+  closeWonModal();
+  await markStatus(i, 'won', { plan: _wonPlan, term: _wonTerm, price });
+}
+
+async function markStatus(i, status, wonOption) {
   const p = window._dashMap[i];
   if (!p) return;
   try {
+    const body = { proposalNumber: p.proposalNumber, status };
+    if (status === 'won' && wonOption) body.wonOption = wonOption;
     const resp = await fetch('/update-proposal-status', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
-      body: JSON.stringify({ proposalNumber: p.proposalNumber, status })
+      body: JSON.stringify(body)
     });
     if (resp.ok) {
-      dashCache = dashCache.map(c => c.proposalNumber===p.proposalNumber ? Object.assign({},c,{status}) : c);
+      dashCache = dashCache.map(c => c.proposalNumber===p.proposalNumber
+        ? Object.assign({}, c, { status, wonOption: status === 'won' ? (wonOption || c.wonOption || null) : null })
+        : c);
       renderDashboard(dashFiltered());
-      toast('Marked ' + p.proposalNumber + ' as ' + status + '.', status === 'won' ? 'success' : 'info');
+      const optTxt = status === 'won' && wonOption
+        ? ' (' + WON_PLAN_LABELS[wonOption.plan] + ' · ' + wonOption.term + '-Year' + (wonOption.price != null ? ' · $' + Math.round(wonOption.price).toLocaleString() + '/yr' : '') + ')'
+        : '';
+      toast('Marked ' + p.proposalNumber + ' as ' + status + optTxt + '.', status === 'won' ? 'success' : 'info');
     } else { toast('Could not update status.', 'error'); }
   } catch(e) { toast('Could not update status.', 'error'); }
 }
