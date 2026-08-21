@@ -2470,20 +2470,25 @@ function wonPickTerm(t, el) {
 
 // Prefill the sold $/yr from the proposal's stored 1-year prices (3yr −3%,
 // 5yr −5% — same math as the PDF table). Editable for negotiated amounts.
+// Proposals logged before formState snapshots only stored the annual-plan
+// value, so for those only the Annual plan can autofill.
 function wonCalcPrice(explicit) {
   const p = window._dashMap[_wonIdx];
   const el = document.getElementById('won-price');
   if (!p) { el.value = ''; return; }
   if (explicit != null) { el.value = Math.round(explicit); return; }
+  const disc = _wonTerm === 3 ? 0.97 : _wonTerm === 5 ? 0.95 : 1;
   const f = p.formState && p.formState.fields;
   const base = f ? parseFloat(f['p-1-' + _wonPlan]) : NaN;
   if (!isNaN(base) && base > 0) {
-    const disc = _wonTerm === 3 ? 0.97 : _wonTerm === 5 ? 0.95 : 1;
     el.value = Math.round(base * disc);
-  } else if (_wonPlan === 'a' && _wonTerm === 1 && p.annualValue) {
-    el.value = Math.round(p.annualValue);
+    el.placeholder = 'Sold price per year';
+  } else if (_wonPlan === 'a' && p.annualValue) {
+    el.value = Math.round(p.annualValue * disc);
+    el.placeholder = 'Sold price per year';
   } else {
     el.value = '';
+    el.placeholder = 'No stored price for this option — type the sold $/yr';
   }
 }
 
