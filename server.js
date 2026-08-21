@@ -564,6 +564,15 @@ function getNextProposalNumber() {
   return `AA-${year}-${String(data.counter).padStart(4, '0')}`;
 }
 
+// The number the NEXT real generate would get, without consuming it —
+// used by PDF previews so they show the real number but burn nothing
+function peekNextProposalNumber() {
+  let data = { counter: 0 };
+  try { data = JSON.parse(fs.readFileSync(COUNTER_FILE, 'utf8')); } catch(e) {}
+  const year = new Date().getFullYear();
+  return `AA-${year}-${String((data.counter || 0) + 1).padStart(4, '0')}`;
+}
+
 const EQ_CATALOG = {
   rtu:    { name:'Rooftop Unit (RTU)',         cats:{ 'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Clean condenser coil','Check evaporator coil','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — inspect','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit'] } },
   split:  { name:'Split System (DX)',           cats:{ 'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — inspect','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit'] } },
@@ -1307,7 +1316,10 @@ app.post('/shield-report', async (req, res) => {
 app.post('/generate', async (req, res) => {
   try {
     const data = req.body;
-    data.proposalNumber = getNextProposalNumber();
+    // Preview builds render the same PDF but consume no proposal number,
+    // write no file, and log nothing — served inline instead of as download
+    const isPreview = !!data.preview;
+    data.proposalNumber = isPreview ? peekNextProposalNumber() : getNextProposalNumber();
     const html = buildHTML(data);
 
     const browser = await puppeteer.launch({
@@ -1326,6 +1338,12 @@ app.post('/generate', async (req, res) => {
     await browser.close();
 
     const filename = `${data.proposalNumber}_${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA.pdf`;
+
+    if (isPreview) {
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(pdf);
+    }
 
     // ── Save PDF to disk ──────────────────────────────────────────────────
     const PDF_DIR = path.join(DATA_DIR, 'pdfs');

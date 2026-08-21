@@ -137,6 +137,18 @@ excludes it.
   `deleteProp()` is TAKEN by the dashboard script block later in the file —
   function declarations share the global scope across script blocks, so a
   same-named function in block 1 is silently overridden.
+- **PDF preview:** `generate(true)` posts the same `/generate` payload with
+  `preview: true` — the server renders the identical PDF but uses
+  `peekNextProposalNumber()` (no counter consumed), saves no file, writes no
+  log entry, and responds `Content-Disposition: inline`. The client opens the
+  tab synchronously inside the click (popup blockers) and points it at the
+  blob. The proposal number shown in a preview is the one the next real
+  generate WILL use.
+- **Dashboard insights row:** win rate (won ÷ won+lost), top sold option
+  (most common `wonOption` plan+term combo), avg sold $/yr, and avg
+  sold-vs-quoted delta (sold price vs that option's `formState` quoted price).
+  All computed client-side in `renderDashboard()` from the (search-filtered)
+  proposal list.
 - **Mark Won:** the Dashboard's Mark Won button opens a modal
   (`openWonModal()`) asking which plan/term the customer signed for; the
   choice is stored as `wonOption {plan, term, price}` on the log entry via

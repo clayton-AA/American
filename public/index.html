@@ -570,6 +570,10 @@
       <span id="btn-label">Generate &amp; Download PDF</span>
       <div class="spinner" id="spinner"></div>
     </button>
+    <button class="btn-docusign" id="preview-btn" onclick="generate(true)" style="display:flex;align-items:center;justify-content:center;gap:6px;">
+      <span id="preview-btn-label">&#128065; Preview PDF</span>
+      <div class="spinner" id="preview-spinner" style="display:none;"></div>
+    </button>
     <button class="btn-docusign" onclick="openDSModal()">&#9993; Send for Signature via DocuSign</button>
     <button class="btn-clear" onclick="clearAll()">Clear all fields</button>
     <div id="draft-status" style="text-align:center;font-size:11px;color:#9aa3ad;margin-top:8px;min-height:14px;"></div>
@@ -629,6 +633,23 @@
           <div class="dash-stat-label">Total Proposals</div>
           <div class="dash-stat-value" id="ds-total-val">—</div>
           <div class="dash-stat-sub" id="ds-total-sub"></div>
+        </div>
+      </div>
+      <div class="dash-stats" style="margin-top:-8px;">
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Win Rate</div>
+          <div class="dash-stat-value" id="ds-win-rate">—</div>
+          <div class="dash-stat-sub" id="ds-win-rate-sub"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Top Sold Option</div>
+          <div class="dash-stat-value" id="ds-top-opt" style="font-size:14px;line-height:1.3;padding-top:3px;">—</div>
+          <div class="dash-stat-sub" id="ds-top-opt-sub"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label">Avg Sold / Yr</div>
+          <div class="dash-stat-value" id="ds-avg-sold">—</div>
+          <div class="dash-stat-sub" id="ds-avg-sold-sub"></div>
         </div>
       </div>
       <div class="dash-section-title" id="renewals-section-title" style="display:none">Upcoming Renewals</div>
@@ -903,16 +924,28 @@ function customLabelOk() {
   return false;
 }
 
-async function generate() {
+async function generate(preview) {
   const active = EQ_DATA.filter(e => state[e.id].active);
   if (active.length === 0) { toast('Select at least one equipment type.', 'error'); return; }
   if (!validateForm()) return;
   if (!customLabelOk()) return;
 
-  const btn  = document.getElementById('gen-btn');
-  const lbl  = document.getElementById('btn-label');
-  const spin = document.getElementById('spinner');
-  btn.disabled = true; lbl.textContent = 'Generating...'; spin.style.display = 'block';
+  // Open the tab synchronously (inside the click) so popup blockers allow it
+  let previewWin = null;
+  if (preview) {
+    previewWin = window.open('about:blank', '_blank');
+    if (!previewWin) { toast('Popup blocked — allow popups for this site to preview PDFs.', 'error'); return; }
+  }
+
+  const btn   = document.getElementById('gen-btn');
+  const lbl   = document.getElementById('btn-label');
+  const spin  = document.getElementById('spinner');
+  const pbtn  = document.getElementById('preview-btn');
+  const plbl  = document.getElementById('preview-btn-label');
+  const pspin = document.getElementById('preview-spinner');
+  btn.disabled = true; pbtn.disabled = true;
+  if (preview) { plbl.textContent = 'Building preview...'; pspin.style.display = 'block'; }
+  else { lbl.textContent = 'Generating...'; spin.style.display = 'block'; }
 
   try {
     const payload = {
@@ -930,6 +963,7 @@ async function generate() {
       surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
       formState:  serializeForm(),
+      preview:    !!preview,
     };
 
     const resp = await fetch('/generate', {
@@ -947,16 +981,23 @@ async function generate() {
 
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = resp.headers.get('Content-Disposition').match(/filename="(.+)"/)[1];
-    a.click();
-    URL.revokeObjectURL(url);
+    if (preview) {
+      previewWin.location = url;   // tab shows the PDF; nothing saved or logged
+    } else {
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = resp.headers.get('Content-Disposition').match(/filename="(.+)"/)[1];
+      a.click();
+      URL.revokeObjectURL(url);
+    }
 
   } catch(e) {
+    if (previewWin && !previewWin.closed) previewWin.close();
     toast('Error generating document: ' + e.message, 'error', { duration: 8000 });
   } finally {
-    btn.disabled = false; lbl.textContent = 'Generate & Download PDF'; spin.style.display = 'none';
+    btn.disabled = false; pbtn.disabled = false;
+    lbl.textContent = 'Generate & Download PDF'; spin.style.display = 'none';
+    plbl.innerHTML = '&#128065; Preview PDF'; pspin.style.display = 'none';
   }
 }
 
@@ -2291,6 +2332,48 @@ function renderDashboard(proposals) {
   document.getElementById('ds-pipe-count').textContent = open.length + ' open proposal' + (open.length!==1?'s':'');
   document.getElementById('ds-total-val').textContent  = proposals.length;
   document.getElementById('ds-total-sub').textContent  = proposals.filter(p=>p.status==='lost').length + ' lost';
+
+  // ── Insights row (computed from won proposals + their recorded options) ──
+  const lost = proposals.filter(p => p.status === 'lost');
+  const decided = won.length + lost.length;
+  document.getElementById('ds-win-rate').textContent = decided ? Math.round(100 * won.length / decided) + '%' : '—';
+  document.getElementById('ds-win-rate-sub').textContent = decided
+    ? won.length + ' won · ' + lost.length + ' lost'
+    : 'no decided proposals yet';
+
+  const opts = won.filter(p => p.wonOption && p.wonOption.plan);
+  const comboCounts = {};
+  opts.forEach(p => { const k = p.wonOption.plan + '|' + p.wonOption.term; comboCounts[k] = (comboCounts[k]||0) + 1; });
+  const topCombo = Object.keys(comboCounts).sort((a,b) => comboCounts[b] - comboCounts[a])[0];
+  if (topCombo) {
+    const parts = topCombo.split('|');
+    document.getElementById('ds-top-opt').textContent = (WON_PLAN_LABELS[parts[0]] || parts[0]) + ' · ' + parts[1] + '-Year';
+    document.getElementById('ds-top-opt-sub').textContent =
+      Math.round(100 * comboCounts[topCombo] / opts.length) + '% of ' + opts.length + ' recorded win' + (opts.length !== 1 ? 's' : '');
+  } else {
+    document.getElementById('ds-top-opt').textContent = '—';
+    document.getElementById('ds-top-opt-sub').textContent = 'no options recorded yet';
+  }
+
+  const soldVals = won.map(p => parseFloat(p.wonOption && p.wonOption.price != null ? p.wonOption.price : p.annualValue) || 0).filter(v => v > 0);
+  const avgSold = soldVals.length ? soldVals.reduce((s,v) => s+v, 0) / soldVals.length : 0;
+  document.getElementById('ds-avg-sold').textContent = avgSold ? '$' + Math.round(avgSold).toLocaleString() : '—';
+  // Sold vs quoted: compare the sold $/yr to that option's quoted price where both are known
+  const deltas = [];
+  won.forEach(p => {
+    const wo = p.wonOption, f = p.formState && p.formState.fields;
+    if (!wo || wo.price == null || !f) return;
+    const base = parseFloat(f['p-1-' + wo.plan]);
+    if (isNaN(base) || base <= 0) return;
+    const quoted = base * (wo.term === 3 ? 0.97 : wo.term === 5 ? 0.95 : 1);
+    if (quoted > 0) deltas.push((wo.price - quoted) / quoted);
+  });
+  const avgDelta = deltas.length ? deltas.reduce((s,v) => s+v, 0) / deltas.length : null;
+  document.getElementById('ds-avg-sold-sub').textContent =
+    avgDelta == null
+      ? (soldVals.length ? 'across ' + soldVals.length + ' win' + (soldVals.length !== 1 ? 's' : '') : 'no wins yet')
+      : (Math.abs(avgDelta) < 0.0005 ? 'right at quoted price'
+         : Math.round(Math.abs(avgDelta) * 1000) / 10 + '% ' + (avgDelta < 0 ? 'below' : 'above') + ' quoted avg');
 
   const list = document.getElementById('dash-list');
   if (proposals.length === 0) { list.innerHTML = '<div class="my-props-empty">No proposals found.</div>'; return; }
