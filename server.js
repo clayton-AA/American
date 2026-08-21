@@ -573,6 +573,32 @@ function peekNextProposalNumber() {
   return `AA-${year}-${String((data.counter || 0) + 1).padStart(4, '0')}`;
 }
 
+// Short-lived in-memory store for preview PDFs. The preview tab can't send
+// auth headers, so it fetches by an unguessable one-off token instead.
+const previewCache = new Map();   // token -> { pdf, filename, at }
+const PREVIEW_TTL_MS = 10 * 60 * 1000;
+function prunePreviews() {
+  const now = Date.now();
+  for (const [k, v] of previewCache) { if (now - v.at > PREVIEW_TTL_MS) previewCache.delete(k); }
+}
+
+// Launch the PDF browser. Render/Linux uses @sparticuz/chromium's bundled
+// build; a Windows dev machine falls back to the installed desktop Chrome so
+// /generate, previews, and SHIELD reports work locally too.
+async function launchBrowser() {
+  if (process.platform === 'win32') {
+    const candidates = [
+      process.env.CHROME_PATH,
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    ].filter(Boolean);
+    const exe = candidates.find(p => fs.existsSync(p));
+    if (exe) return puppeteer.launch({ executablePath: exe, headless: 'new' });
+  }
+  return puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+}
+
 const EQ_CATALOG = {
   rtu:    { name:'Rooftop Unit (RTU)',         cats:{ 'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Clean condenser coil','Check evaporator coil','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — inspect','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit'] } },
   split:  { name:'Split System (DX)',           cats:{ 'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'], 'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — inspect','Lubricate motor & blower bearings'], 'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit'] } },
@@ -1298,7 +1324,7 @@ app.post('/shield-report', async (req, res) => {
     if (!Array.isArray(data.units) || data.units.length === 0)
       return res.status(400).json({ error: 'No equipment to report on' });
     const html = buildShieldHTML(data);
-    const browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+    const browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdf = await page.pdf({ format: 'Letter', printBackground: true, margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' } });
@@ -1322,12 +1348,7 @@ app.post('/generate', async (req, res) => {
     data.proposalNumber = isPreview ? peekNextProposalNumber() : getNextProposalNumber();
     const html = buildHTML(data);
 
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
+    const browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdf = await page.pdf({
@@ -1340,9 +1361,10 @@ app.post('/generate', async (req, res) => {
     const filename = `${data.proposalNumber}_${data.facility.replace(/[^a-z0-9]/gi,'_')}_PMA.pdf`;
 
     if (isPreview) {
-      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-      res.setHeader('Content-Type', 'application/pdf');
-      return res.send(pdf);
+      prunePreviews();
+      const token = crypto.randomBytes(16).toString('hex');
+      previewCache.set(token, { pdf, filename, at: Date.now() });
+      return res.json({ ok: true, previewToken: token });
     }
 
     // ── Save PDF to disk ──────────────────────────────────────────────────
@@ -1391,6 +1413,18 @@ app.post('/generate', async (req, res) => {
       res.status(500).json({ error: err.message || String(err) });
     }
   }
+});
+
+// ── Serve a preview PDF by its one-off token (viewed inline, never saved) ──
+app.get('/preview-pdf/:token', (req, res) => {
+  const entry = previewCache.get(req.params.token);
+  if (!entry || Date.now() - entry.at > PREVIEW_TTL_MS) {
+    previewCache.delete(req.params.token);
+    return res.status(404).send('Preview expired — generate a new one from the app.');
+  }
+  res.setHeader('Content-Disposition', `inline; filename="${entry.filename}"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.send(entry.pdf);
 });
 
 // ── Re-download saved PDF ────────────────────────────────────────────────
@@ -1584,7 +1618,7 @@ app.post('/send-docusign', async (req, res) => {
     const data = req.body;
     data.proposalNumber = getNextProposalNumber();
     const html    = buildHTML(data);
-    const browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+    const browser = await launchBrowser();
     const page    = await browser.newPage();
     await page.setContent(html, { waitUntil:'networkidle0' });
     const pdf = await page.pdf({ format:'Letter', printBackground:true, margin:{top:'0.5in',right:'0.5in',bottom:'0.5in',left:'0.5in'} });
@@ -1634,7 +1668,7 @@ app.post('/debug-pdf-text', async (req, res) => {
     const data = req.body;
     data.proposalNumber = 'DEBUG-001';
     const html = buildHTML(data);
-    const browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
+    const browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil:'networkidle0' });
     const pdf = await page.pdf({ format:'Letter', printBackground:true, margin:{top:'0.5in',right:'0.5in',bottom:'0.5in',left:'0.5in'} });

@@ -935,6 +935,10 @@ async function generate(preview) {
   if (preview) {
     previewWin = window.open('about:blank', '_blank');
     if (!previewWin) { toast('Popup blocked — allow popups for this site to preview PDFs.', 'error'); return; }
+    try {
+      previewWin.document.write('<title>Proposal Preview</title><body style="font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555;font-size:15px;">Building your proposal preview&hellip; this can take 10&ndash;20 seconds.</body>');
+      previewWin.document.close();
+    } catch(e) { /* cosmetic only */ }
   }
 
   const btn   = document.getElementById('gen-btn');
@@ -979,11 +983,14 @@ async function generate(preview) {
       throw new Error(msg);
     }
 
-    const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
     if (preview) {
-      previewWin.location = url;   // tab shows the PDF; nothing saved or logged
+      // Server holds the rendered PDF briefly; the tab loads it by token
+      // (a plain same-origin URL — no blob-URL popup restrictions)
+      const result = await resp.json();
+      previewWin.location = location.origin + '/preview-pdf/' + result.previewToken;
     } else {
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
       a.download = resp.headers.get('Content-Disposition').match(/filename="(.+)"/)[1];

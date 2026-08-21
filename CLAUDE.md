@@ -139,11 +139,17 @@ excludes it.
   same-named function in block 1 is silently overridden.
 - **PDF preview:** `generate(true)` posts the same `/generate` payload with
   `preview: true` — the server renders the identical PDF but uses
-  `peekNextProposalNumber()` (no counter consumed), saves no file, writes no
-  log entry, and responds `Content-Disposition: inline`. The client opens the
-  tab synchronously inside the click (popup blockers) and points it at the
-  blob. The proposal number shown in a preview is the one the next real
-  generate WILL use.
+  `peekNextProposalNumber()` (no counter consumed), saves no file, and writes
+  no log entry. The PDF is parked in the in-memory `previewCache` (10-min
+  TTL) and the response is `{previewToken}`; the client opened the tab
+  synchronously inside the click (popup blockers), wrote a "building…"
+  interstitial into it, and navigates it to `GET /preview-pdf/:token`, which
+  serves the PDF inline. Do NOT navigate popups to blob: URLs — Chrome
+  restricts opener-initiated blob navigation and it shows a blank page.
+- **Local PDF rendering works:** `launchBrowser()` in `server.js` falls back
+  to the installed desktop Chrome on Windows dev machines (Render/Linux keeps
+  the @sparticuz/chromium build), so `/generate`, previews, and SHIELD
+  reports can be exercised locally.
 - **Dashboard insights row:** win rate (won ÷ won+lost), top sold option
   (most common `wonOption` plan+term combo), avg sold $/yr, and avg
   sold-vs-quoted delta (sold price vs that option's `formState` quoted price).
