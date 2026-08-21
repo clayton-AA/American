@@ -155,6 +155,19 @@ excludes it.
   sold-vs-quoted delta (sold price vs that option's `formState` quoted price).
   All computed client-side in `renderDashboard()` from the (search-filtered)
   proposal list.
+- **Auto-win from DocuSign:** `/send-docusign` and `/resend-docusign` store
+  the created `envelopeId` on the log entry (without this the webhook can
+  never match — it was dead code before). On an `envelope-completed` Connect
+  event, `/docusign-webhook` reads the customer's checked checkbox tabs
+  (from the payload, else via the DocuSign recipients API with
+  `include_tabs=true`), maps Q/SA/A + 1/3/5yr labels to
+  `wonOption {plan, term, price}` (price from `formState` math), records
+  `paymentTerm` (monthly/service/upfront), sets status `won`, `signedAt`,
+  `contractLength`, `frequency`, and `expiresAt` (signing date + term — the
+  renewal-radar hook). If no tab data is reachable it still marks won,
+  just without an option. Webhook gotcha: the global `express.json()`
+  parses the body before the route's `express.raw` — parse `req.body`
+  by shape, never assume a Buffer.
 - **Mark Won:** the Dashboard's Mark Won button opens a modal
   (`openWonModal()`) asking which plan/term the customer signed for; the
   choice is stored as `wonOption {plan, term, price}` on the log entry via

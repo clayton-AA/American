@@ -1495,75 +1495,103 @@ app.post('/delete-proposal', (req, res) => {
 
 // ── DocuSign Connect Webhook ──────────────────────────────────────────────
 // Receives envelope completion events from DocuSign Connect
-app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5mb' }), (req, res) => {
+
+// Checked checkbox tabs for the customer (routing order 1) from a recipients object
+function dsCheckedTabs(recipients) {
+  const signers = (recipients && recipients.signers) || [];
+  const customer = signers.find(s => String(s.routingOrder) === '1') || signers[0];
+  const boxes = (customer && customer.tabs && customer.tabs.checkboxTabs) || [];
+  return boxes.filter(t => t.selected === 'true' || t.selected === true);
+}
+
+// Fallback when the Connect payload doesn't include recipient tab data:
+// pull the recipients (with tabs) straight from the DocuSign API
+async function dsFetchCheckedTabs(envelopeId) {
+  const token = await getDSToken();
+  const resp = await httpsReq({
+    hostname: 'na4.docusign.net',
+    path:     `/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes/${envelopeId}/recipients?include_tabs=true`,
+    method:   'GET',
+    headers:  { 'Authorization': `Bearer ${token}` }
+  });
+  if (resp.status !== 200) throw new Error('recipients fetch HTTP ' + resp.status);
+  return dsCheckedTabs(resp.body);
+}
+
+app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5mb' }), async (req, res) => {
   try {
-    // DocuSign sends JSON — parse raw body
-    const body = JSON.parse(req.body.toString());
+    // The global express.json() middleware has usually already parsed the
+    // body into an object before express.raw sees it — handle every shape
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString())
+      : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
 
     const event    = body.event;
     const envelope = body.data && body.data.envelopeSummary ? body.data.envelopeSummary : body.envelopeSummary;
 
     if (!envelope) { return res.status(200).send('ok'); }
 
-    const envelopeId = envelope.envelopeId;
+    const envelopeId = envelope.envelopeId || (body.data && body.data.envelopeId);
     const status     = (envelope.status || '').toLowerCase();
 
-    console.log(`DocuSign webhook: envelopeId=${envelopeId} status=${status}`);
+    console.log(`DocuSign webhook: envelopeId=${envelopeId} status=${status} event=${event}`);
 
     // Only act on 'completed' (both parties signed)
-    if (status === 'completed' && envelopeId) {
+    if ((status === 'completed' || event === 'envelope-completed') && envelopeId) {
       const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
       let log = [];
       try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
 
       const match = log.find(p => p.envelopeId === envelopeId);
       if (match) {
-        // Parse which pricing checkbox was selected
-        let contractLength = null;
-        let frequency = null;
-        try {
-          const recipients = envelope.recipients || {};
-          const signers = recipients.signers || [];
-          // Customer is signer 1
-          const customer = signers.find(s => s.routingOrder === '1' || s.routingOrder === 1);
-          if (customer && customer.tabs && customer.tabs.checkboxTabs) {
-            const checked = customer.tabs.checkboxTabs.filter(t => t.selected === 'true' || t.selected === true);
-            console.log('Checked tabs:', checked.map(t => t.tabLabel));
-            // Determine contract length and frequency from tab label
-            // Labels: Q1yr, SA1yr, A1yr, Q3yr, SA3yr, A3yr, Q5yr, SA5yr, A5yr
-            const freqMap = { Q: 'Quarterly', SA: 'Semi-Annual', A: 'Annual' };
-            const lenMap  = { '1yr': 1, '3yr': 3, '5yr': 5 };
-            for (const tab of checked) {
-              const label = tab.tabLabel || '';
-              for (const [key, len] of Object.entries(lenMap)) {
-                if (label.endsWith(key)) {
-                  contractLength = len;
-                  const freqKey = label.replace(key, '');
-                  frequency = freqMap[freqKey] || freqKey;
-                }
-              }
-            }
-          }
-        } catch(e) { console.log('Tab parse error:', e.message); }
+        // Which pricing / payment checkboxes did the customer tick?
+        // Price labels: Q1yr, SA1yr, A1yr, Q3yr ... A5yr; payment: PayMonthly/PayService/PayUpfront
+        let checked = [];
+        try { checked = dsCheckedTabs(envelope.recipients); } catch(e) {}
+        if (!checked.length) {
+          try { checked = await dsFetchCheckedTabs(envelopeId); }
+          catch(e) { console.log('Tab API fallback failed:', e.message); }
+        }
+        console.log('Checked tabs:', checked.map(t => t.tabLabel));
 
-        // Calculate expiration date
-        let expiresAt = null;
+        const PLAN_KEY  = { Q: 'q', SA: 's', A: 'a' };
+        const FREQ_NAME = { q: 'Quarterly', s: 'Semi-Annual', a: 'Annual' };
+        const PAY_KEY   = { PayMonthly: 'monthly', PayService: 'service', PayUpfront: 'upfront' };
+        let plan = null, term = null, paymentTerm = null;
+        for (const tab of checked) {
+          const m = /^(Q|SA|A)([135])yr$/.exec(tab.tabLabel || '');
+          if (m) { plan = PLAN_KEY[m[1]]; term = parseInt(m[2], 10); }
+          if (PAY_KEY[tab.tabLabel]) paymentTerm = PAY_KEY[tab.tabLabel];
+        }
+
+        // Sold $/yr for the chosen option — same math as the Mark Won modal
+        let price = null;
+        if (plan && term) {
+          const disc = term === 3 ? 0.97 : term === 5 ? 0.95 : 1;
+          const f = match.formState && match.formState.fields;
+          const base = f ? parseFloat(f['p-1-' + plan]) : NaN;
+          if (!isNaN(base) && base > 0) price = Math.round(base * disc);
+          else if (plan === 'a' && match.annualValue) price = Math.round(match.annualValue * disc);
+        }
+
         const signedAt = new Date().toISOString();
-        if (contractLength) {
+        let expiresAt = null;
+        if (term) {
           const exp = new Date();
-          exp.setFullYear(exp.getFullYear() + contractLength);
+          exp.setFullYear(exp.getFullYear() + term);
           expiresAt = exp.toISOString();
         }
 
-        console.log(`Contract: ${contractLength}yr ${frequency}, expires: ${expiresAt}`);
+        console.log(`Contract: ${term}yr ${plan ? FREQ_NAME[plan] : '?'} $${price}/yr pay=${paymentTerm}, expires: ${expiresAt}`);
 
         log = log.map(p => p.envelopeId === envelopeId ? {
           ...p,
           status: 'won',
           signedAt,
-          contractLength,
-          frequency,
+          contractLength: term,
+          frequency: plan ? FREQ_NAME[plan] : null,
           expiresAt,
+          ...(paymentTerm ? { paymentTerm } : {}),
+          ...(plan && term ? { wonOption: { plan, term, price } } : {}),
         } : p);
         fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
         console.log(`Marked ${match.proposalNumber} as WON via DocuSign webhook`);
@@ -1635,6 +1663,13 @@ app.post('/send-docusign', async (req, res) => {
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
     const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date, plans:enabledPlanKeys(data.priceTable) });
+    // Store the envelope id on the log entry — the completion webhook matches
+    // on it to auto-mark the proposal won
+    try {
+      let log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
+      log = log.map(p => p.proposalNumber === data.proposalNumber ? { ...p, envelopeId } : p);
+      fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+    } catch(e) { console.error('envelopeId save error:', e.message); }
     res.json({ ok:true, envelopeId, proposalNumber:data.proposalNumber });
   } catch(err) { console.error('DocuSign send error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
@@ -1656,6 +1691,14 @@ app.post('/resend-docusign', async (req, res) => {
       if (entry && Array.isArray(entry.plans) && entry.plans.length) plans = entry.plans;
     } catch(e) {}
     const envelopeId = await createDSEnvelope({ pdfBuffer, filename:`${proposalNumber}_PMA.pdf`, customerName, customerEmail, repName, repEmail:'Clayton@americanairinc.com', date:'', plans });
+    // Point the log entry at the NEW envelope so the completion webhook
+    // matches the resent copy (and mark it as sent via DocuSign)
+    try {
+      const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+      let log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
+      log = log.map(p => p.proposalNumber === proposalNumber ? { ...p, envelopeId, sentViaDocuSign: true, customerEmail } : p);
+      fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+    } catch(e) { console.error('envelopeId save error:', e.message); }
     res.json({ ok:true, envelopeId, proposalNumber });
   } catch(err) { console.error('Resend error:', err); if (!res.headersSent) res.status(500).json({ error: err.message||String(err) }); }
 });
