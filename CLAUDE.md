@@ -72,6 +72,13 @@ DocuSign: `DOCUSIGN_ACCOUNT_ID`, `DOCUSIGN_INTEGRATION_KEY`,
 AI tag reading (optional): `ANTHROPIC_API_KEY`, `TAG_MODEL`
 (default `claude-haiku-4-5-20251001`).
 
+Signed-proposal notifications (optional — email self-disables if unset):
+`SMTP_USER` + `SMTP_PASS` (Google Workspace mailbox + App Password),
+`SMTP_HOST`/`SMTP_PORT` (default `smtp.gmail.com`/465), `NOTIFY_CC`.
+When the DocuSign completion webhook marks a proposal won, the selling rep
+(`salesEmail` on the log entry) gets a plain-text email with the option,
+price, and payment terms via `sendSignedNotification()`.
+
 ## ⚠️ Critical gotcha: equipment catalog must stay in sync
 
 Equipment types are defined in **two** places that **must** match:

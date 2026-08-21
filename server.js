@@ -16,6 +16,60 @@ const DS_ACCOUNT_ID  = process.env.DOCUSIGN_ACCOUNT_ID      || '';
 const DS_USER_ID     = process.env.DOCUSIGN_USER_ID         || '';
 const DS_PRIVATE_KEY = (process.env.DOCUSIGN_PRIVATE_KEY    || '').replace(/\\n/g, '\n');
 
+// ── Signed-proposal email notifications ───────────────────────────────────
+// Self-disables unless SMTP_USER + SMTP_PASS are set. For Google Workspace,
+// SMTP_USER is the sending mailbox and SMTP_PASS is an App Password
+// (Google Account → Security → 2-Step Verification → App passwords).
+// Optional: SMTP_HOST / SMTP_PORT (defaults: Gmail, 465) and NOTIFY_CC.
+const nodemailer = require('nodemailer');
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465', 10);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const NOTIFY_CC = process.env.NOTIFY_CC || '';
+let _mailer = null;
+function mailer() {
+  if (!SMTP_USER || !SMTP_PASS) return null;
+  if (!_mailer) _mailer = nodemailer.createTransport({
+    host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  return _mailer;
+}
+
+// Email the selling rep when their proposal finishes signing in DocuSign
+async function sendSignedNotification(p) {
+  const m = mailer();
+  if (!m) { console.log('Signed notification skipped — SMTP not configured'); return; }
+  if (!p.salesEmail) { console.log(`Signed notification skipped — no salesEmail on ${p.proposalNumber}`); return; }
+  const PLAN_NAMES = { q: 'Quarterly', s: 'Semi-Annual', a: 'Annual' };
+  const PAY_NAMES  = { monthly: 'Monthly', service: 'At time of service', upfront: 'Upfront / annual' };
+  const wo = p.wonOption;
+  const optLine = wo
+    ? `${PLAN_NAMES[wo.plan] || wo.plan} · ${wo.term}-Year${wo.price != null ? ` — $${Math.round(wo.price).toLocaleString()}/yr` : ''}`
+    : 'not recorded — check the signed PDF';
+  const signedAt = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const body = [
+    `${p.contact || 'The customer'}${p.facility ? ' at ' + p.facility : ''} has completed signing.`,
+    '',
+    `Proposal:  ${p.proposalNumber}`,
+    `Facility:  ${p.facility || '—'}`,
+    `Option:    ${optLine}`,
+    `Payment:   ${PAY_NAMES[p.paymentTerm] || p.paymentTerm || '—'}`,
+    `Signed:    ${signedAt} ET`,
+    '',
+    'The proposal is marked Won on the dashboard.',
+  ].join('\n');
+  await m.sendMail({
+    from: `"American Air Proposals" <${SMTP_USER}>`,
+    to: p.salesEmail,
+    ...(NOTIFY_CC ? { cc: NOTIFY_CC } : {}),
+    subject: `Signed — ${p.proposalNumber}${p.facility ? ' · ' + p.facility : ''}`,
+    text: body,
+  });
+  console.log(`Signed notification sent to ${p.salesEmail} for ${p.proposalNumber}`);
+}
+
 function httpsReq(options, body) {
   return new Promise((resolve, reject) => {
     const req = https.request(options, res => {
@@ -1583,8 +1637,8 @@ app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5m
 
         console.log(`Contract: ${term}yr ${plan ? FREQ_NAME[plan] : '?'} $${price}/yr pay=${paymentTerm}, expires: ${expiresAt}`);
 
-        log = log.map(p => p.envelopeId === envelopeId ? {
-          ...p,
+        const updated = {
+          ...match,
           status: 'won',
           signedAt,
           contractLength: term,
@@ -1592,9 +1646,14 @@ app.post('/docusign-webhook', express.raw({ type: 'application/json', limit: '5m
           expiresAt,
           ...(paymentTerm ? { paymentTerm } : {}),
           ...(plan && term ? { wonOption: { plan, term, price } } : {}),
-        } : p);
+        };
+        log = log.map(p => p.envelopeId === envelopeId ? updated : p);
         fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
         console.log(`Marked ${match.proposalNumber} as WON via DocuSign webhook`);
+
+        // Tell the selling rep — failures log but never fail the webhook
+        try { await sendSignedNotification(updated); }
+        catch(e) { console.error('Signed notification error:', e.message); }
       } else {
         console.log(`Webhook: no proposal found for envelopeId=${envelopeId}`);
       }
