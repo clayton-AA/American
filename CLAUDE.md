@@ -96,8 +96,8 @@ When adding a new equipment type, update **both** lists. `server.js` also
 guards the lookups with `if (!eq) return '';` so an unknown id is skipped
 rather than crashing — keep that guard in place.
 
-Current ids (14, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
-boiler, erv, backflow, waterheater, fancoil, chiller`.
+Current ids (15, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
+boiler, erv, backflow, waterheater, fancoil, chiller, heatpump`.
 
 **Exception — the `custom` pseudo-type** (front end only, `custom: true` in
 `EQ_DATA`): the rep types the equipment name into the card

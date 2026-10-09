@@ -358,8 +358,9 @@ const EQ_MATCHERS = [
   ['exhaust', /exhaust|supply fan|ventilat/i],
   ['fancoil', /fan[\s-]?coil|\bfcu\b/i],
   ['chiller', /chiller|chilled\s?water/i],
+  ['heatpump', /heat[\s-]?pump|\bwshp\b|\bashp\b|\bptac\b/i],
   ['rtu',     /\brtu\b|roof[\s-]?top|packaged?\s?unit/i],
-  ['split',   /split|condens|air handler|\bahu\b|heat pump|furnace/i],
+  ['split',   /split|condens|air handler|\bahu\b|furnace/i],
 ];
 
 // Installed equipment for one customer, grouped by app equipment card.
@@ -390,7 +391,9 @@ app.get('/st-equipment/:id', async (req, res) => {
       ['coil',        /coil|evaporator/i],
       ['furnace',     /furnace/i],
       ['air_handler', /air handler|\bahu\b/i],
-      ['condenser',   /condens|heat pump/i],
+      // "heat pump" labels match the standalone heatpump card first and
+      // never reach this component grouping
+      ['condenser',   /condens/i],
     ];
     const STANDALONE = EQ_MATCHERS.filter(([id]) => id !== 'split');
     const splitByLoc = {}; // locId -> { coil, furnace, air_handler, condenser }
@@ -670,6 +673,7 @@ const EQ_CATALOG = {
   waterheater: { name:'Water Heater',           cats:{ 'Flush & Sediment':['Flush tank to remove sediment buildup','Drain & refill — verify proper fill & recovery','Inspect for sediment level in flush water','Document flush date & condition'], 'Safety & Controls':['Temperature & pressure relief valve — inspect & test','Thermostat setpoint — verify & adjust','High-limit control — test','Expansion tank — inspect pressure & condition'], 'Combustion / Heating':['Burner assembly & ignition sequence if gas','Flue & venting — inspect & clear if applicable','Heating element(s) if electric — check','Gas valve & supply pressure if applicable'], 'General':['All electrical connections','Anode rod — inspect & replace if needed','Inspect for leaks at connections','Overall condition of unit','Recommend service if needed'] } },
   fancoil: { name:'Ducted Fan Coil',            cats:{ 'Air & Filtration':['Filters — inspect / replace per contract','Blower wheel & housing — inspect & clean','Belts if applicable — inspect / replace per contract','Verify airflow & operation'], 'Coil & Piping':['Heating / cooling coil — inspect & clean per contract','Control valve — stroke & seating if applicable','Check for water / refrigerant leaks','Piping insulation & connections — inspect'], 'Drainage':['Drain pan, line & trap — inspect & flush','Check for biological growth','Condensate pump if applicable','Verify proper drainage'], 'Electrical & Controls':['All electrical connections','Volts/amps — blower motor','Test all safety controls','Test all controls & sequences','Thermostat / zone sensor operation','Overall condition of unit'] } },
   chiller: { name:'Chiller',                    cats:{ 'Refrigeration':['Refrigerant pressures & levels — all circuits','Check for refrigerant / oil leaks','Oil level & condition per circuit','Compressor operation — amps & unloading','Purge unit operation if applicable'], 'Condenser / Evaporator':['Condenser coils or tubes — clean per contract','Evaporator approach temperature — record','Water flow & pressure drop if applicable','Glycol / water condition — verify with treatment vendor'], 'Electrical & Controls':['All electrical connections','Volts/amps — compressors & fan motors','Starters & contactors for wear','Test all safety controls','Test all controls & sequences','Setpoints & fault log review'], 'General':['Isolation valves & piping — inspect for leaks','Vibration & unusual noise check','Insulation condition','Overall condition of unit','Recommend service if needed'] } },
+  heatpump: { name:'Heat Pump',                 cats:{ 'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures — heating & cooling modes','Check for refrigerant / oil leaks','Reversing valve operation — verify changeover','Coils — clean per contract','Inspect condensate drain pan & lines'], 'Heating Performance':['Defrost cycle operation & termination','Auxiliary / emergency heat operation','Crankcase heater operation','Balance point & staging verified'], 'Mechanical':['Filters — inspect / replace per contract','Blower wheel — inspect','Belts if applicable — inspect / replace per contract','Lubricate motor & blower bearings','Overall condition of unit'] } },
 };
 
 const SERVICES = [
