@@ -767,7 +767,13 @@ function buildHTML(data) {
   const planEn = pt.enabled || {};
   const plans = PLAN_DEFS.filter(p => planEn[p.k] !== false);
   const planColW = Math.floor(82 / plans.length);
-  const priceCell = (p, ti) => `<td class="price-cell">${fmtP(p.vals[ti])}<span class="ds-anchor" id="anc-${p.anc[ti]}">__${p.anc[ti]}__</span></td>`;
+  // Every price in the table is an ANNUAL rate — say so on each filled cell
+  // so a 3/5-year term can't be misread as a total contract price
+  const priceCell = (p, ti) => {
+    const v = fmtP(p.vals[ti]);
+    const shown = v === '—' ? v : `${v}<span style="font-size:9px;color:#777;font-weight:400;">/yr</span>`;
+    return `<td class="price-cell">${shown}<span class="ds-anchor" id="anc-${p.anc[ti]}">__${p.anc[ti]}__</span></td>`;
+  };
   const pricingTableHTML = hasPrices ? `
   <div class="section-label">Service agreement options</div>
   <table class="pricing-sel-table">
@@ -796,7 +802,7 @@ function buildHTML(data) {
   <div class="pricing-footer">
     <div class="pricing-lock">
       <span class="lock-icon">&#9650;</span>
-      <span><strong>Lock in your rate today.</strong> Prices are subject to change. Multi-year agreements guarantee your rate for the full term — protecting you from future increases in labor and material costs.</span>
+      <span><strong>Lock in your rate today.</strong> All pricing shown is <strong>per year</strong> — a 3- or 5-year agreement is billed annually at the rate shown. Prices are subject to change. Multi-year agreements guarantee your annual rate for the full term — protecting you from future increases in labor and material costs.</span>
     </div>
     <div class="payment-terms-row">
       <span class="payment-label">Preferred payment terms:</span>

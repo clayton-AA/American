@@ -870,7 +870,7 @@ function refresh() {
   // ── Pricing preview (mirrors the PDF table — enabled plans only) ──
   const pt = getPriceTable();
   if (pt.y1q || pt.y1s || pt.y1a) {
-    const cell = (v) => v ? '$' + Math.round(v).toLocaleString() : '—';
+    const cell = (v) => v ? '$' + Math.round(v).toLocaleString() + '<span style="font-size:10px;color:#888;">/yr</span>' : '—';
     const plans = [
       { k:'q', label:'Quarterly',   v:[pt.y1q, pt.y3q, pt.y5q] },
       { k:'s', label:'Semi-Annual', v:[pt.y1s, pt.y3s, pt.y5s] },
