@@ -96,8 +96,14 @@ When adding a new equipment type, update **both** lists. `server.js` also
 guards the lookups with `if (!eq) return '';` so an unknown id is skipped
 rather than crashing — keep that guard in place.
 
-Current ids (15, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
-boiler, erv, backflow, waterheater, fancoil, chiller, heatpump`.
+Current ids (16, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
+boiler, erv, backflow, waterheater, fancoil, chiller, heatpump, furnace`.
+
+`furnace` (annual-only, defaultVisits 1) has NO standalone ST matcher on
+purpose: furnace records route through the split-component grouping, and the
+collapse step counts a location's furnaces as standalone `furnace` units only
+when that location has no cooling components (coil / air handler / condenser).
+Mixed locations keep folding furnaces into split systems.
 
 **Exception — the `custom` pseudo-type** (front end only, `custom: true` in
 `EQ_DATA`): the rep types the equipment name into the card
