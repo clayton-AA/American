@@ -2058,6 +2058,15 @@ function filterMyProps() {
   renderMyProposals(filtered);
 }
 
+// Won date for a won proposal: DocuSign wins carry signedAt, manual Mark Won
+// carries wonAt (manual wins logged before wonAt existed have neither → '').
+function fmtWonDate(p) {
+  const iso = p.signedAt || p.wonAt;
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
 function renderMyProposals(proposals) {
   const list  = document.getElementById('mine-list');
   const empty = document.getElementById('mine-empty');
@@ -2080,9 +2089,11 @@ function renderMyProposals(proposals) {
       ? new Date(p.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
       : p.date || '—';
     const dsTag = p.sentViaDocuSign ? ' <span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;">DocuSign</span>' : '';
+    const wonD  = p.status === 'won' ? fmtWonDate(p) : '';
+    const wonTag = p.status === 'won' ? ' <span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;">&#10003; Won' + (wonD ? ' &middot; ' + esc(wonD) : '') + '</span>' : '';
     return `<div class="my-prop-card">
       <div class="my-prop-top">
-        <span class="my-prop-num">${esc(p.proposalNumber)||'—'}${dsTag}</span>
+        <span class="my-prop-num">${esc(p.proposalNumber)||'—'}${dsTag}${wonTag}</span>
         <span class="my-prop-date">${esc(d)}</span>
       </div>
       <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
@@ -2401,7 +2412,8 @@ function renderDashboard(proposals) {
       : p.date || '—';
     const status = p.status || (p.sentViaDocuSign ? 'sent' : 'open');
     const statusLabels = { won:'✓ Won', lost:'✗ Lost', sent:'Sent', open:'Open' };
-    const badge   = '<span class="dash-status-badge '+status+'">'+(statusLabels[status]||status)+'</span>';
+    const wonD    = status === 'won' ? fmtWonDate(p) : '';
+    const badge   = '<span class="dash-status-badge '+status+'">'+(statusLabels[status]||status)+(wonD ? ' &middot; '+esc(wonD) : '')+'</span>';
     const wo      = status === 'won' && p.wonOption ? p.wonOption : null;
     const val     = wo
       ? '<span class="dash-prop-value">'+(wo.price != null ? '$'+parseFloat(wo.price).toLocaleString(undefined,{maximumFractionDigits:0})+'/yr · ' : '')+(WON_PLAN_LABELS[wo.plan]||wo.plan)+' · '+wo.term+'-yr</span>'
@@ -2520,9 +2532,14 @@ async function markStatus(i, status, wonOption) {
       body: JSON.stringify(body)
     });
     if (resp.ok) {
-      dashCache = dashCache.map(c => c.proposalNumber===p.proposalNumber
-        ? Object.assign({}, c, { status, wonOption: status === 'won' ? (wonOption || c.wonOption || null) : null })
-        : c);
+      dashCache = dashCache.map(c => {
+        if (c.proposalNumber !== p.proposalNumber) return c;
+        const n = Object.assign({}, c, { status, wonOption: status === 'won' ? (wonOption || c.wonOption || null) : null });
+        // Mirror the server's wonAt stamp so the card shows the won date without a refetch
+        if (status === 'won') { if (c.status !== 'won') n.wonAt = new Date().toISOString(); }
+        else delete n.wonAt;
+        return n;
+      });
       renderDashboard(dashFiltered());
       const optTxt = status === 'won' && wonOption
         ? ' (' + WON_PLAN_LABELS[wonOption.plan] + ' · ' + wonOption.term + '-Year' + (wonOption.price != null ? ' · $' + Math.round(wonOption.price).toLocaleString() + '/yr' : '') + ')'

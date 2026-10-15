@@ -1535,6 +1535,12 @@ app.post('/update-proposal-status', (req, res) => {
   log = log.map(p => {
     if (p.proposalNumber !== proposalNumber) return p;
     const next = { ...p, status };
+    // wonAt = when the proposal was marked won by hand. DocuSign wins get
+    // signedAt from the webhook instead; the financial dashboard buckets wins
+    // by signedAt || wonAt || generatedAt. Re-marking an already-won proposal
+    // (e.g. to fix the option) keeps the original stamp.
+    if (status === 'won' && p.status !== 'won') next.wonAt = new Date().toISOString();
+    else if (status !== 'won') delete next.wonAt;
     // wonOption = { plan: 'q'|'s'|'a', term: 1|3|5, price: $/yr or null } —
     // which pricing-table cell the customer actually signed for
     if (status === 'won' && wonOption && ['q','s','a'].includes(wonOption.plan) && [1,3,5].includes(wonOption.term)) {
