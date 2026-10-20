@@ -737,7 +737,9 @@ function buildHTML(data) {
   const fmtP = (v) => v && v > 0 ? '$' + Number(v).toLocaleString() : '—';
   const hasPrices = pt.y1q > 0 || pt.y1s > 0 || pt.y1a > 0;
 
-  const totalUnits  = equipment.reduce((s,e) => s + e.qty, 0);
+  // Entries with `heads` (ductless) count condensers in qty and indoor heads
+  // separately — both are serviced units on the schedule
+  const totalUnits  = equipment.reduce((s,e) => s + e.qty + (e.heads || 0), 0);
   const totalVisits = equipment.length > 0 ? Math.max(...equipment.map(e => e.visits)) : 0;
 
   const servicesHTML = SERVICES.map(([title, desc]) => `
@@ -846,7 +848,7 @@ function buildHTML(data) {
     if (!name) return '';
     const units = surveyUnits.filter(u => u.typeId === e.id);
     let rows = `<tr class="${i%2===1?'alt':''}">
-      <td>${name}</td><td>${e.qty}</td><td></td>
+      <td>${name}</td><td>${e.heads ? e.qty + e.heads : e.qty}</td><td>${e.heads ? `${e.qty} condenser${e.qty !== 1 ? 's' : ''} &middot; ${e.heads} indoor head${e.heads !== 1 ? 's' : ''}` : ''}</td>
     </tr>`;
     units.forEach((u, j) => {
       const detail = u.detail || [
@@ -885,7 +887,7 @@ function buildHTML(data) {
     <div class="eq-block">
       <div class="eq-header">
         <span class="eq-name">${eq.name}</span>
-        <span class="eq-badge">${e.qty} unit${e.qty>1?'s':''} on site &middot; ${e.visits} visit${e.visits>1?'s':''} per year</span>
+        <span class="eq-badge">${e.heads ? `${e.qty} condenser${e.qty>1?'s':''} &middot; ${e.heads} head${e.heads>1?'s':''}` : `${e.qty} unit${e.qty>1?'s':''}`} on site &middot; ${e.visits} visit${e.visits>1?'s':''} per year</span>
       </div>
       <table class="eq-table">
         <thead><tr>${headerCells}</tr></thead>
@@ -1458,7 +1460,7 @@ app.post('/generate', async (req, res) => {
       try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
       const eqSummary = data.equipment.map(e => {
         const eq = EQ_CATALOG[e.id];
-        if (eq) return `${e.qty}x ${eq.name}`;
+        if (eq) return `${e.qty}x ${eq.name}` + (e.heads ? ` (${e.heads} heads)` : '');
         if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`;
         return e.id;
       }).join(', ');
@@ -1748,7 +1750,7 @@ app.post('/send-docusign', async (req, res) => {
     const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
-      const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}`; if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
+      const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}` + (e.heads ? ` (${e.heads} heads)` : ''); if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
       log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }

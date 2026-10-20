@@ -700,7 +700,7 @@ const esc = s => String(s ?? '')
 const EQ_DATA = [
   { id:'rtu',    name:'Rooftop Unit (RTU)',         defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor, condenser & evap fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Check evaporator coil','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Sheaves — wear & alignment','Blower wheels — inspect','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly & ignition sequence','Inducer fan wheel if applicable','Overall condition of unit']} },
   { id:'split',  name:'Split System (DX)',           defaultVisits:2, cats:{'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'],'Refrigeration':['Refrigerant pressures','Check for refrigerant / oil leaks','Condenser coil — clean per contract','Inspect condensate drain pan & lines'],'Mechanical':['Filters — inspect / replace per contract','Belts — inspect / replace per contract','Blower wheels — inspect','Lubricate motor & blower bearings'],'Heating':['Heat exchanger — cracks / corrosion','Burner assembly if applicable','Ignition & burner sequence','Overall condition of unit']} },
-  { id:'mini',   name:'Ductless Mini Split',         defaultVisits:2, cats:{'Air & Filtration':['Filters — clean or replace per contract','Fan blades & housing — fouling check','Damper — adjust / lubricate if applicable','Check for moisture carryover from drain pan'],'Refrigeration':['Refrigerant pressures & levels','Check for visible refrigerant / oil leaks','Evaporator coils — clean per contract','Condenser coils — clean per contract'],'Electrical & Controls':['All electrical connections','Control system devices','Control box — dirt & debris','Test all safety controls','Test all controls & sequences','Field serviceable bearings — lubricate'],'Drainage':['Drain pan, line & coil — check for biological growth','Condensate pump if applicable','General condition of unit']} },
+  { id:'mini',   name:'Ductless Mini Split',         defaultVisits:2, heads:true, cats:{'Air & Filtration':['Filters — clean or replace per contract','Fan blades & housing — fouling check','Damper — adjust / lubricate if applicable','Check for moisture carryover from drain pan'],'Refrigeration':['Refrigerant pressures & levels','Check for visible refrigerant / oil leaks','Evaporator coils — clean per contract','Condenser coils — clean per contract'],'Electrical & Controls':['All electrical connections','Control system devices','Control box — dirt & debris','Test all safety controls','Test all controls & sequences','Field serviceable bearings — lubricate'],'Drainage':['Drain pan, line & coil — check for biological growth','Condensate pump if applicable','General condition of unit']} },
   { id:'vrf',    name:'VRF / VRV System',            defaultVisits:2, cats:{'Electrical':['Volts/amps — all motors','Tighten all electrical connections','All safety controls & safeties','Communication wiring integrity'],'Refrigeration':['Refrigerant pressures — all circuits','Check for leaks — all connections','Condenser coil — clean per contract','Oil levels if applicable'],'Controls':['Zone controller operation','Setpoints & schedules verified','Test all safety controls','Test all controls & sequences','Fault code review','Overall controls condition'],'Mechanical':['Fan blades & housing','Filters — indoor units per contract','Lubricate all serviceable bearings','Overall condition — all heads & ODU']} },
   { id:'vav',    name:'VAV Box',                     defaultVisits:2, cats:{'Controls':['Actuator operation & calibration','Thermostat / zone sensor accuracy','Test all safety controls','Test all controls & sequences','Setpoints & schedules verified','Occupied / unoccupied schedules'],'Mechanical':['Damper blade condition & seating','Linkage — tighten & lubricate','Box casing & insulation integrity','Flow measurement if applicable'],'Heating':['Hot water coil operation if applicable','Control valve — stroke & seating','Reheat sequence of operation','Overall condition of box'],'Electrical':['All electrical connections','Control board & wiring','24V transformer output','Overall condition']} },
   { id:'reznor', name:'Reznor / Unit Heater',        defaultVisits:1, cats:{'Combustion':['Burner assembly & orifices','Ignition sequence of operation','Burner sequence of operation','Gas valve operation & pressure'],'Heat Exchanger':['Cracks, corrosion & deterioration','Flue & venting — blockage & condition','Combustion air — adequate supply','CO test if applicable'],'Electrical':['All electrical connections','Test all safety controls','Test all controls & sequences','Thermostat calibration','Blower motor amps if applicable'],'General':['Fan blade & housing condition','Filters if applicable','Overall unit condition','Recommend service if needed']} },
@@ -720,7 +720,7 @@ const EQ_DATA = [
 ];
 
 let state = {};
-EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}) }; });
+EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}), ...(e.heads ? { heads: 1 } : {}) }; });
 
 function buildGrid() {
   const g = document.getElementById('eq-grid');
@@ -732,11 +732,16 @@ function buildGrid() {
     d.id = 'card-' + eq.id;
     const nameInput = eq.custom ? `
         <input class="eq-name-input" type="text" maxlength="60" placeholder="e.g. Chiller, Cooling Tower..." value="${esc(s.label || '')}" id="custom-label-inp" onclick="event.stopPropagation()" oninput="updateCustomLabel(this.value)">` : '';
+    const qtyControls = eq.heads ? `
+        <span class="eq-ctrl-label">Cond</span>
+        <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">
+        <span class="eq-ctrl-label">Heads</span>
+        <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.heads || 1}" id="heads-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','heads',this.value)">` : `
+        <span class="eq-ctrl-label">Qty</span>
+        <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">`;
     d.innerHTML = `
       <div class="eq-card-name">${eq.name}<div class="eq-check"><div class="eq-check-inner"></div></div></div>
-      <div class="eq-controls"${eq.custom ? ' style="flex-wrap:wrap"' : ''}>${nameInput}
-        <span class="eq-ctrl-label">Qty</span>
-        <input class="eq-ctrl-input" type="number" min="1" max="99" value="${s.qty}" id="qty-${eq.id}" onclick="event.stopPropagation()" oninput="updateField('${eq.id}','qty',this.value)">
+      <div class="eq-controls"${eq.custom ? ' style="flex-wrap:wrap"' : ''}>${nameInput}${qtyControls}
       </div>`;
     d.addEventListener('click', () => toggle(eq.id));
     g.appendChild(d);
@@ -831,7 +836,7 @@ function refresh() {
   document.getElementById('prev-contact').textContent  = [contact, date].filter(Boolean).join(' · ') || '—';
   document.getElementById('prev-sales-info').textContent = sName ? `${sName}${sPhone?' · '+sPhone:''}` : '—';
 
-  const totalUnits = active.reduce((s,e) => s + state[e.id].qty, 0);
+  const totalUnits = active.reduce((s,e) => s + state[e.id].qty + (e.heads ? (state[e.id].heads || 1) : 0), 0);
   document.getElementById('prev-units').textContent = totalUnits || '—';
   document.getElementById('prev-types').textContent = active.length || '—';
   document.getElementById('prev-date').textContent  = date || '—';
@@ -856,8 +861,11 @@ function refresh() {
       </div>`;
       return;
     }
+    const badge = eq.heads
+      ? `${s.qty} condenser${s.qty>1?'s':''} · ${s.heads || 1} head${(s.heads||1)>1?'s':''}`
+      : `${s.qty} unit${s.qty>1?'s':''}`;
     html += `<div class="preview-eq">
-      <div class="preview-eq-title">${eq.name}<span class="preview-eq-badge">${s.qty} unit${s.qty>1?'s':''}</span></div>
+      <div class="preview-eq-title">${eq.name}<span class="preview-eq-badge">${badge}</span></div>
       <div class="preview-cat-grid">`;
     Object.entries(eq.cats).forEach(([cat, items]) => {
       html += `<div class="preview-cat"><div class="preview-cat-label">${cat}</div><ul class="preview-cat-items">`;
@@ -967,7 +975,7 @@ async function generate(preview) {
       priceTable: getPriceTable(),
       additions:  gv('inp-additions'),
       exclusions: gv('inp-exclusions'),
-      equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
+      equipment:  active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}), ...(e.heads ? { heads: state[e.id].heads || 1 } : {}) })),
       surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
       formState:  serializeForm(),
@@ -1022,7 +1030,7 @@ function clearAll() {
   });
   setDateToToday();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
-  EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}) }; });
+  EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}), ...(e.heads ? { heads: 1 } : {}) }; });
   planEnabled = { q: true, s: true, a: true };
   applyPlanUI();
   clearDraft();
@@ -1046,7 +1054,7 @@ function serializeForm() {
   const fields = {};
   DRAFT_FIELDS.concat(SALES_FIELDS).forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
   const eq = {};
-  EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; } });
+  EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; if (e.heads) eq[e.id].heads = s.heads || 1; } });
   return { fields, eq, plans: { ...planEnabled } };
 }
 
@@ -1058,6 +1066,7 @@ function applyEqState(eqMap) {
       ? { active: true, qty: saved.qty || 1, visits: saved.visits || e.defaultVisits }
       : { active: false, qty: 1, visits: e.defaultVisits };
     if (e.custom) state[e.id].label = (saved && saved.label) || '';
+    if (e.heads) state[e.id].heads = (saved && saved.heads) || 1;
   });
 }
 
@@ -1213,7 +1222,8 @@ if (sessionStorage.getItem('sitePassword')) {
 const EQ_HOURS = {
   rtu:    { q: 0.3,  a: 1.0  },
   split:  { q: 0.3,  a: 1.5  },
-  mini:   { q: 0.33, a: 1.5  },
+  mini:   { q: 0.15, a: 0.5  },   // per CONDENSER (outdoor unit)
+  minihead: { q: 0.2, a: 1.0 },   // per indoor head (a 1:1 system ≈ the old 0.33/1.5)
   vrf:    { q: 0.5,  a: 1.0  },
   vav:    { q: 0.25, a: 1.0  },
   reznor: { q: 0,    a: 0.75 },
@@ -1273,26 +1283,35 @@ function setCalcHours(id, field, val) {
 // Rebuild the per-equipment hour rows only when the active set / quantities change
 function syncCalcRows() {
   const active = EQ_DATA.filter(e => state[e.id].active);
-  const sig = active.map(e => e.id + ':' + state[e.id].qty + (e.custom ? ':' + (state[e.id].label || '') : '')).join('|');
+  const sig = active.map(e => e.id + ':' + state[e.id].qty + (e.custom ? ':' + (state[e.id].label || '') : '') + (e.heads ? ':h' + (state[e.id].heads || 1) : '')).join('|');
   if (sig !== calcSig) {
     calcSig = sig;
     const grid = document.getElementById('calc-eq-rows');
     // keep the 4 header cells, rebuild the rest
     while (grid.children.length > 4) grid.removeChild(grid.lastChild);
-    active.forEach(e => {
-      const h = getCalcHours(e.id);
-      const label = e.custom ? ((state[e.id].label || '').trim() || 'Custom Equipment') : e.name;
+    const addRow = (hoursKey, label, qtyVal) => {
+      const h = getCalcHours(hoursKey);
       const name = document.createElement('div');
       name.className = 'calc-eq-name'; name.textContent = label; name.title = label;
       const qty = document.createElement('div');
-      qty.className = 'calc-eq-qty'; qty.textContent = state[e.id].qty;
+      qty.className = 'calc-eq-qty'; qty.textContent = qtyVal;
       const qIn = document.createElement('input');
       qIn.className = 'calc-input'; qIn.type = 'number'; qIn.step = '0.05'; qIn.min = '0'; qIn.value = h.q;
-      qIn.oninput = function() { setCalcHours(e.id, 'q', this.value); };
+      qIn.oninput = function() { setCalcHours(hoursKey, 'q', this.value); };
       const aIn = document.createElement('input');
       aIn.className = 'calc-input'; aIn.type = 'number'; aIn.step = '0.05'; aIn.min = '0'; aIn.value = h.a;
-      aIn.oninput = function() { setCalcHours(e.id, 'a', this.value); };
+      aIn.oninput = function() { setCalcHours(hoursKey, 'a', this.value); };
       grid.append(name, qty, qIn, aIn);
+    };
+    active.forEach(e => {
+      const label = e.custom ? ((state[e.id].label || '').trim() || 'Custom Equipment') : e.name;
+      if (e.heads) {
+        // Heads and condensers carry separate labor — two rows
+        addRow(e.id, label + ' — Condensers', state[e.id].qty);
+        addRow(e.id + 'head', label + ' — Heads', state[e.id].heads || 1);
+      } else {
+        addRow(e.id, label, state[e.id].qty);
+      }
     });
     // Totals row — values filled by calcSuggest() so they track hour edits live
     if (active.length) {
@@ -1332,14 +1351,17 @@ function calcSuggest() {
   const comm   = (parseFloat(document.getElementById('as-comm').value)  || 0) / 100;
 
   let hrsA = 0, hrsS = 0, hrsQ = 0, totUnits = 0, totVisitQ = 0, totVisitA = 0;
-  active.forEach(e => {
-    const n = state[e.id].qty, h = getCalcHours(e.id);
+  const tally = (n, h) => {
     hrsA += n * h.a;                 // 1 annual visit
     hrsS += n * (h.q + h.a);         // 1 quarterly + 1 annual visit
     hrsQ += n * (3 * h.q + h.a);     // 3 quarterly + 1 annual visit
     totUnits += n;
     totVisitQ += n * h.q;            // crew hours for one quarterly visit
     totVisitA += n * h.a;            // crew hours for one annual visit
+  };
+  active.forEach(e => {
+    tally(state[e.id].qty, getCalcHours(e.id));
+    if (e.heads) tally(state[e.id].heads || 1, getCalcHours(e.id + 'head'));
   });
 
   // Totals row under the per-equipment hour inputs
@@ -1607,6 +1629,7 @@ function surveyApply() {
     if (e.custom) return; // survey types never map to the custom pseudo-type — keep the rep's entry
     const n = counts[e.id];
     state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
+    if (e.heads) state[e.id].heads = n || 1;
   });
   buildGrid();
   // Auto age tier from average system age
@@ -1938,6 +1961,8 @@ async function stLoadEquipment(customerId) {
       if (e.custom) return; // ST never reports the custom pseudo-type — keep the rep's entry
       const n = eq.counts[e.id];
       state[e.id] = { active: !!n, qty: n || 1, visits: e.defaultVisits };
+      // ST can't tell heads from condensers — assume 1:1, rep adjusts
+      if (e.heads) state[e.id].heads = n || 1;
     });
     buildGrid();
     refresh();
@@ -2242,7 +2267,7 @@ async function sendDocuSign() {
           facility: gv('inp-facility'), address: gv('inp-address'), contact: gv('inp-contact'),
           salesName: gv('inp-sales-name'), salesPhone: gv('inp-sales-phone'), salesEmail: gv('inp-sales-email'),
           date: fmtDate(), priceTable: getPriceTable(), additions: gv('inp-additions'), exclusions: gv('inp-exclusions'),
-          equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}) })),
+          equipment: active.map(e => ({ id: e.id, qty: state[e.id].qty, visits: state[e.id].visits, ...(e.custom ? { label: (state[e.id].label || '').trim() } : {}), ...(e.heads ? { heads: state[e.id].heads || 1 } : {}) })),
           surveyUnits: surveyPayloadUnits(),
           customerName, customerEmail,
           formState: serializeForm(),
