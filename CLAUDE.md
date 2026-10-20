@@ -99,12 +99,14 @@ rather than crashing — keep that guard in place.
 Current ids (16, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
 boiler, erv, backflow, waterheater, fancoil, chiller, heatpump, furnace`.
 
-`mini` has `heads: true`: the card takes separate Condenser (`qty`) and
-Heads (`heads`) counts, the calculator shows two hour rows (`EQ_HOURS.mini` =
-per condenser, `EQ_HOURS.minihead` = per indoor head), the payload carries
-`heads` on the equipment entry, and the PDF schedule/scope show both counts
-(`totalUnits` adds heads). ST auto-load can't tell heads from condensers —
-it sets both to the matched count (1:1 assumption) for the rep to adjust.
+`mini` and `vrf` have `heads: true`: the card takes separate Condenser
+(`qty`) and Heads (`heads`) counts, the calculator shows two hour rows
+(`EQ_HOURS.<id>` = per condenser, `EQ_HOURS.<id>head` = per indoor head),
+the payload carries `heads` on the equipment entry, and the PDF
+schedule/scope show both counts (`totalUnits` adds heads). ST auto-load
+can't tell heads from condensers — it sets both to the matched count
+(1:1 assumption) for the rep to adjust. The flag is generic: any type can
+opt in with `heads: true` plus an `EQ_HOURS.<id>head` entry.
 
 `furnace` (annual-only, defaultVisits 1) has NO standalone ST matcher on
 purpose: furnace records route through the split-component grouping, and the
