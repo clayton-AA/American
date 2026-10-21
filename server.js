@@ -397,7 +397,7 @@ app.get('/st-equipment/:id', async (req, res) => {
     ];
     const STANDALONE = EQ_MATCHERS.filter(([id]) => id !== 'split');
     const splitByLoc = {}; // locId -> { coil, furnace, air_handler, condenser }
-    const furnaceUnitIdx = {}; // locId -> indexes into units[] of furnace components
+    const compUnitIdx = {}; // locId -> { furnace: [unit indexes], air_handler: [unit indexes] }
     for (const r of equipment) {
       const label = [(r.type && r.type.name) || '', r.name || '', r.model || ''].join(' ');
       let typeId = null;
@@ -412,7 +412,10 @@ app.get('/st-equipment/:id', async (req, res) => {
           const loc = r.locationId || 0;
           splitByLoc[loc] = splitByLoc[loc] || {};
           splitByLoc[loc][comp[0]] = (splitByLoc[loc][comp[0]] || 0) + 1;
-          if (comp[0] === 'furnace') (furnaceUnitIdx[loc] = furnaceUnitIdx[loc] || []).push(units.length);
+          if (comp[0] === 'furnace' || comp[0] === 'air_handler') {
+            const byLoc = compUnitIdx[loc] = compUnitIdx[loc] || {};
+            (byLoc[comp[0]] = byLoc[comp[0]] || []).push(units.length);
+          }
         } else {
           unmatched.push((r.type && r.type.name) || r.name || r.model || 'Unknown unit');
         }
@@ -433,15 +436,19 @@ app.get('/st-equipment/:id', async (req, res) => {
     // Collapse split components into systems: at each location the number of
     // systems is the largest single component group there (e.g. 3 condensers +
     // 3 coils + 2 furnaces => 3 systems). One coil + condenser + furnace => 1.
-    // A location with furnaces but NO cooling components is heating-only —
-    // those are standalone furnaces (annual service card), not split pieces.
+    // A location with NO condensers or coils has nothing to pair into split
+    // systems — its furnaces are standalone furnaces (annual card) and its
+    // air handlers are standalone AHUs (hydronic etc.), not split pieces.
     let splitSystems = 0, splitComponentTotal = 0;
+    const retag = (loc, compKey, typeId) => {
+      ((compUnitIdx[loc] || {})[compKey] || []).forEach(i => { units[i].typeId = typeId; });
+    };
     for (const loc in splitByLoc) {
       const c = splitByLoc[loc];
-      const cooling = Math.max(c.coil||0, c.air_handler||0, c.condenser||0);
-      if (cooling === 0 && c.furnace) {
-        counts.furnace = (counts.furnace || 0) + c.furnace;
-        (furnaceUnitIdx[loc] || []).forEach(i => { units[i].typeId = 'furnace'; });
+      const pairing = Math.max(c.coil||0, c.condenser||0);
+      if (pairing === 0) {
+        if (c.furnace) { counts.furnace = (counts.furnace || 0) + c.furnace; retag(loc, 'furnace', 'furnace'); }
+        if (c.air_handler) { counts.airhandler = (counts.airhandler || 0) + c.air_handler; retag(loc, 'air_handler', 'airhandler'); }
         continue;
       }
       splitComponentTotal += (c.coil||0) + (c.furnace||0) + (c.air_handler||0) + (c.condenser||0);
@@ -685,6 +692,7 @@ const EQ_CATALOG = {
   chiller: { name:'Chiller',                    cats:{ 'Refrigeration':['Refrigerant pressures & levels — all circuits','Check for refrigerant / oil leaks','Oil level & condition per circuit','Compressor operation — amps & unloading','Purge unit operation if applicable'], 'Condenser / Evaporator':['Condenser coils or tubes — clean per contract','Evaporator approach temperature — record','Water flow & pressure drop if applicable','Glycol / water condition — verify with treatment vendor'], 'Electrical & Controls':['All electrical connections','Volts/amps — compressors & fan motors','Starters & contactors for wear','Test all safety controls','Test all controls & sequences','Setpoints & fault log review'], 'General':['Isolation valves & piping — inspect for leaks','Vibration & unusual noise check','Insulation condition','Overall condition of unit','Recommend service if needed'] } },
   heatpump: { name:'Heat Pump',                 cats:{ 'Electrical':['Volts/amps — compressor & fan motors','Tighten all electrical connections','Starters & contactors for wear','Test all safety controls','Test all controls & sequences'], 'Refrigeration':['Refrigerant pressures — heating & cooling modes','Check for refrigerant / oil leaks','Reversing valve operation — verify changeover','Coils — clean per contract','Inspect condensate drain pan & lines'], 'Heating Performance':['Defrost cycle operation & termination','Auxiliary / emergency heat operation','Crankcase heater operation','Balance point & staging verified'], 'Mechanical':['Filters — inspect / replace per contract','Blower wheel — inspect','Belts if applicable — inspect / replace per contract','Lubricate motor & blower bearings','Overall condition of unit'] } },
   furnace: { name:'Furnace',                    cats:{ 'Combustion':['Burner assembly — inspect & clean','Ignition & burner sequence of operation','Gas valve operation & supply pressure','Flame sensor — clean & test','Combustion analysis — check & adjust if applicable'], 'Heat Exchanger':['Inspect for cracks, corrosion & deterioration','Flue & venting — blockage & condition','Combustion air — adequate supply','Inducer fan & pressure switch operation','CO test if applicable'], 'Air & Mechanical':['Filters — inspect / replace per contract','Blower wheel & motor — inspect & clean','Belts if applicable — inspect / replace per contract','Lubricate motor & blower bearings'], 'Electrical & Controls':['All electrical connections','Test all safety controls','Test all controls & sequences','Thermostat operation & calibration','Overall condition of unit'] } },
+  airhandler: { name:'Air Handler (AHU)',       cats:{ 'Air & Filtration':['Filters — inspect / replace per contract','Blower wheel & housing — inspect & clean','Belts — inspect / replace per contract','Sheaves — wear & alignment','Verify airflow & operation'], 'Coils & Piping':['Heating / cooling coils — inspect & clean per contract','Control valves — stroke & seating if applicable','Check for water / refrigerant leaks','Coil fins — comb & condition','Piping insulation & connections — inspect'], 'Dampers & Controls':['Outside air / return dampers — operation & lubrication','Economizer operation if applicable','Actuators & linkages — inspect','Test all safety controls','Test all controls & sequences','Setpoints & schedules verified'], 'Drainage & General':['Drain pan, line & trap — inspect & flush','Check for biological growth','Lubricate motor & blower bearings','All electrical connections','Overall condition of unit'] } },
 };
 
 const SERVICES = [

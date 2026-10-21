@@ -96,8 +96,9 @@ When adding a new equipment type, update **both** lists. `server.js` also
 guards the lookups with `if (!eq) return '';` so an unknown id is skipped
 rather than crashing — keep that guard in place.
 
-Current ids (16, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
-boiler, erv, backflow, waterheater, fancoil, chiller, heatpump, furnace`.
+Current ids (17, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
+boiler, erv, backflow, waterheater, fancoil, chiller, heatpump, furnace,
+airhandler`.
 
 `mini` and `vrf` have `heads: true`: the card takes separate Condenser
 (`qty`) and Heads (`heads`) counts, the calculator shows two hour rows
@@ -108,11 +109,13 @@ can't tell heads from condensers — it sets both to the matched count
 (1:1 assumption) for the rep to adjust. The flag is generic: any type can
 opt in with `heads: true` plus an `EQ_HOURS.<id>head` entry.
 
-`furnace` (annual-only, defaultVisits 1) has NO standalone ST matcher on
-purpose: furnace records route through the split-component grouping, and the
-collapse step counts a location's furnaces as standalone `furnace` units only
-when that location has no cooling components (coil / air handler / condenser).
-Mixed locations keep folding furnaces into split systems.
+`furnace` (annual-only, defaultVisits 1) and `airhandler` have NO standalone
+ST matcher on purpose: their records route through the split-component
+grouping. The collapse step treats a location with no condensers AND no coils
+as having nothing to pair — its furnaces become standalone `furnace` units
+and its air handlers standalone `airhandler` units (unit records retagged).
+Locations with condensers or coils keep folding all components into split
+systems.
 
 **Exception — the `custom` pseudo-type** (front end only, `custom: true` in
 `EQ_DATA`): the rep types the equipment name into the card
