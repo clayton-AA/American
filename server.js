@@ -1569,6 +1569,24 @@ app.post('/update-proposal-status', (req, res) => {
 });
 
 
+// ── Per-proposal notes (Won Contracts tab) ───────────────────────────────
+app.post('/update-proposal-notes', (req, res) => {
+  const pw = req.headers['x-site-password'] || req.headers['x-admin-password'];
+  const SITE_PW  = process.env.SITE_PASSWORD  || 'americanair';
+  const ADMIN_PW = process.env.ADMIN_PASSWORD || 'aaadmin';
+  if (pw !== SITE_PW && pw !== ADMIN_PW) return res.status(401).json({ error: 'Unauthorized' });
+  const { proposalNumber, notes } = req.body;
+  if (!proposalNumber || typeof notes !== 'string' || notes.length > 5000) return res.status(400).json({ error: 'Invalid' });
+  const LOG_FILE = path.join(DATA_DIR, 'proposal_log.json');
+  let log = [];
+  try { log = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch(e) {}
+  let found = false;
+  log = log.map(p => { if (p.proposalNumber === proposalNumber) { found = true; return { ...p, notes }; } return p; });
+  if (!found) return res.status(404).json({ error: 'Not found' });
+  fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+  res.json({ ok: true });
+});
+
 // ── Delete proposal ───────────────────────────────────────────────────────
 app.post('/delete-proposal', (req, res) => {
   const pw = req.headers['x-site-password'];

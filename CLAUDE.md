@@ -32,8 +32,12 @@ Single-server, single-page app. There is no framework and no bundler.
   routing, ServiceTitan/DocuSign/Anthropic integrations, the PMA HTML template,
   the equipment catalog, and Puppeteer PDF rendering.
 - **`public/index.html`** — the entire front end in one file (~2100 lines):
-  markup, styles, and all client JS inline. Four tabs: New Proposal, Survey,
-  My Proposals, Dashboard.
+  markup, styles, and all client JS inline. Five tabs: New Proposal, Survey,
+  My Proposals, Won Contracts, Dashboard. The Won Contracts tab lists
+  status==='won' log entries (deal line from `wonOption`, renewal countdown
+  from `expiresAt`, amber ≤90d / red overdue) with a per-contract notes
+  textarea — debounced autosave to POST `/update-proposal-notes`, which
+  stores `notes` on the log entry (5000-char cap, site or admin password).
 - **`public/dashboard.html`** — standalone proposal dashboard view.
 - **PDF generation** — Puppeteer renders the server-built HTML template to PDF.
   DocuSign signature/initial/date fields are placed using text **anchors**

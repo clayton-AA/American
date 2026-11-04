@@ -156,6 +156,13 @@
   .my-prop-del { padding: 4px 10px; background: white; color: #b23b3b; border: 1px solid var(--border);
     border-radius: var(--radius-sm); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-left: auto; }
   .my-prop-del:hover { background: #fdf1f1; border-color: #e3b6b6; }
+  .won-note { width: 100%; margin-top: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--gray); resize: vertical; min-height: 36px; }
+  .won-note:focus { outline: none; border-color: var(--blue); }
+  .won-note-hint { font-size: 10px; color: var(--muted); text-align: right; height: 13px; }
+  .won-renew { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .won-renew.soon { color: #b26a00; font-weight: 500; }
+  .won-renew.overdue { color: #c62828; font-weight: 500; }
   .my-props-empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 12px; }
   .my-props-loading { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 12px; }
 
@@ -437,6 +444,7 @@
       <button class="tab-btn active" id="tab-new" onclick="switchTab('new')">New Proposal</button>
       <button class="tab-btn" id="tab-survey" onclick="switchTab('survey')">Survey <span style="font-size:9px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">BETA</span></button>
       <button class="tab-btn" id="tab-mine" onclick="switchTab('mine')">My Proposals</button>
+      <button class="tab-btn" id="tab-won" onclick="switchTab('won')">Won Contracts</button>
       <button class="tab-btn" id="tab-dash" onclick="switchTab('dash')">Dashboard</button>
     </div>
 
@@ -614,6 +622,13 @@
       <div class="my-props-list" id="mine-list"></div>
       <div class="my-props-empty" id="mine-empty" style="display:none;">No proposals found for your name.<br>Make sure your name is filled in on the New Proposal tab.</div>
     </div><!-- end my proposals pane -->
+
+    <!-- ══ WON CONTRACTS TAB ══ -->
+    <div class="tab-pane" id="pane-won">
+      <div class="my-props-loading" id="won-loading" style="display:none;">Loading...</div>
+      <div class="my-props-list" id="won-list"></div>
+      <div class="my-props-empty" id="won-empty" style="display:none;">No won contracts yet.<br>Mark a proposal Won on the Dashboard, or win one through DocuSign.</div>
+    </div><!-- end won contracts pane -->
     <div class="tab-pane" id="pane-dash">
       <div class="dash-search-bar">
         <input type="text" id="dash-search" placeholder="Search by customer, proposal #, or rep..." oninput="dashFilter()">
@@ -2014,11 +2029,12 @@ if (_draftRestored) { calcPriceTable(); toast('Restored your unsaved draft.', 'i
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(tab) {
-  ['new','survey','mine','dash'].forEach(t => {
+  ['new','survey','mine','won','dash'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     document.getElementById('pane-'+t).classList.toggle('active', t===tab);
   });
   if (tab === 'mine') loadMyProposals();
+  if (tab === 'won') loadWonTab();
   if (tab === 'dash') loadDashboard();
   if (tab === 'survey') renderSurvey();
 }
@@ -2686,6 +2702,104 @@ renderDashboard = function(proposals) {
   _origRenderDashboard(proposals);
   renderRenewals(dashCache); // Always use full cache for renewals
 };
+
+// ── Won Contracts tab ─────────────────────────────────────────────────────
+let wonCache = [];
+const _noteTimers = {};
+
+async function loadWonTab() {
+  const loading = document.getElementById('won-loading');
+  const list    = document.getElementById('won-list');
+  const empty   = document.getElementById('won-empty');
+  loading.style.display = 'block'; list.innerHTML = ''; empty.style.display = 'none';
+  try {
+    const resp = await fetch('/my-proposals', { headers: { 'x-site-password': sessionStorage.getItem('sitePassword')||'' } });
+    if (!resp.ok) throw new Error();
+    const all = await resp.json();
+    wonCache = all.filter(p => p.status === 'won')
+      .sort((a,b) => new Date(b.signedAt||b.wonAt||b.generatedAt||0) - new Date(a.signedAt||a.wonAt||a.generatedAt||0));
+  } catch(e) {
+    loading.style.display = 'none';
+    list.innerHTML = '<div class="my-props-empty">Could not load contracts.</div>';
+    return;
+  }
+  loading.style.display = 'none';
+  renderWonTab();
+}
+
+function renderWonTab() {
+  const list  = document.getElementById('won-list');
+  const empty = document.getElementById('won-empty');
+  if (!wonCache.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  window._wonMap = {};
+  list.innerHTML = wonCache.map((p, i) => {
+    window._wonMap[i] = p;
+    const wo  = p.wonOption;
+    const opt = wo
+      ? `${wo.price != null ? '$' + Math.round(wo.price).toLocaleString() + '/yr · ' : ''}${WON_PLAN_LABELS[wo.plan]||wo.plan} · ${wo.term}-yr`
+      : [p.frequency, p.contractLength ? p.contractLength + '-yr' : ''].filter(Boolean).join(' · ');
+    const pay = { monthly:'Monthly', service:'At time of service', upfront:'Upfront' }[p.paymentTerm] || '';
+    let renew = '';
+    if (p.expiresAt) {
+      const d = new Date(p.expiresAt);
+      if (!isNaN(d)) {
+        const days = Math.round((d - Date.now()) / 86400000);
+        const cls  = days < 0 ? ' overdue' : days <= 90 ? ' soon' : '';
+        const when = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+        renew = `<div class="won-renew${cls}">Renews ${when}${days < 0 ? ' — expired' : days <= 90 ? ' — ' + days + ' days out' : ''}</div>`;
+      }
+    }
+    const won   = fmtWonDate(p);
+    const dsTag = p.sentViaDocuSign ? ' <span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:8px;">DocuSign</span>' : '';
+    return `<div class="my-prop-card">
+      <div class="my-prop-top">
+        <span class="my-prop-num">${esc(p.proposalNumber)||'—'}${dsTag}</span>
+        <span class="my-prop-date">${won ? 'Won ' + esc(won) : ''}</span>
+      </div>
+      <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
+      <div class="my-prop-contact">${esc(p.contact)||''}${p.salesName ? ' · ' + esc(p.salesName) : ''}</div>
+      ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
+      ${renew}
+      <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
+      <div class="won-note-hint" id="won-hint-${i}"></div>
+      <div class="my-prop-btns">
+        <button class="my-prop-dl" onclick="redownloadProp('${p.proposalNumber}')">&#8595; PDF</button>
+        ${p.formState ? `<button class="my-prop-ds" onclick="editProposal(window._wonMap[${i}])">&#9998; Edit / Renew</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Debounced autosave; flush on blur. Saves skip when nothing changed.
+function wonNoteInput(i, el) {
+  clearTimeout(_noteTimers[i]);
+  const h = document.getElementById('won-hint-' + i);
+  if (h) h.textContent = '…';
+  _noteTimers[i] = setTimeout(() => saveWonNote(i, el.value), 900);
+}
+function wonNoteFlush(i, el) {
+  clearTimeout(_noteTimers[i]);
+  saveWonNote(i, el.value);
+}
+async function saveWonNote(i, val) {
+  const p = window._wonMap[i];
+  const h = document.getElementById('won-hint-' + i);
+  if (!p || (p.notes || '') === val) { if (h) h.textContent = ''; return; }
+  try {
+    const resp = await fetch('/update-proposal-notes', {
+      method:  'POST',
+      headers: { 'Content-Type':'application/json', 'x-site-password': sessionStorage.getItem('sitePassword')||'' },
+      body:    JSON.stringify({ proposalNumber: p.proposalNumber, notes: val })
+    });
+    if (!resp.ok) throw new Error();
+    p.notes = val;
+    if (h) { h.textContent = 'Saved ✓'; setTimeout(() => { if (h.textContent === 'Saved ✓') h.textContent = ''; }, 2000); }
+  } catch(e) {
+    if (h) h.textContent = 'Save failed';
+    toast('Could not save note for ' + p.proposalNumber + '.', 'error');
+  }
+}
 </script>
 
 <div class="toast-wrap" id="toast-wrap"></div>
