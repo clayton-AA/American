@@ -100,9 +100,14 @@ When adding a new equipment type, update **both** lists. `server.js` also
 guards the lookups with `if (!eq) return '';` so an unknown id is skipped
 rather than crashing — keep that guard in place.
 
-Current ids (17, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
+Current ids (18, in sync): `rtu, split, mini, vrf, vav, reznor, mau, exhaust,
 boiler, erv, backflow, waterheater, fancoil, chiller, heatpump, furnace,
-airhandler`.
+airhandler, aconly`.
+
+`aconly` (annual-only, defaultVisits 1, q hours 0) is the cooling-only
+sibling of `furnace`: deliberately NO ST matcher — condenser+coil locations
+keep auto-mapping to `split` (the 2-visit card); reps pick AC Only by hand
+when the agreement is a once-a-year AC tune.
 
 `mini` and `vrf` have `heads: true`: the card takes separate Condenser
 (`qty`) and Heads (`heads`) counts, the calculator shows two hour rows
