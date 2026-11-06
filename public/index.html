@@ -2737,26 +2737,36 @@ async function loadWonTab() {
   renderWonTab();
 }
 
-// Yearly labor hours this contract was bid at, for the plan the customer
-// chose: quarterly = 3 quarterly + 1 annual visit, semi = 1+1, annual = 1.
-// Uses the proposal's saved calculator overrides (formState.calcHours) and
-// falls back to the EQ_HOURS defaults — older wins without saved overrides
-// show the default-based figure.
+// Labor hours this contract was bid at, broken out by visit type for the
+// plan the customer chose. Every plan year is built from two visit types:
+// lighter quarterly/mid-year visits (per-unit q hours) and one comprehensive
+// annual visit (per-unit a hours) — quarterly plan = 3 light + 1 annual,
+// semi-annual = 1 + 1, annual = annual only. Uses the proposal's saved
+// calculator overrides (formState.calcHours), falling back to EQ_HOURS
+// defaults for wins recorded before overrides were persisted.
 function wonBidHours(p) {
   const f = p.formState, wo = p.wonOption;
   if (!f || !f.eq || !wo || !wo.plan) return null;
   const ch = f.calcHours || {};
   const hf = (k) => ch[k] || EQ_HOURS[k] || { q: 0.5, a: 1 };
-  let yq = 0, ys = 0, ya = 0;
-  const add = (n, h) => { ya += n * h.a; ys += n * (h.q + h.a); yq += n * (3 * h.q + h.a); };
+  let vq = 0, va = 0;   // crew hours for one light visit / one annual visit
+  const add = (n, h) => { vq += n * h.q; va += n * h.a; };
   for (const id in f.eq) {
     const e = f.eq[id];
     add(e.qty || 0, hf(id));
     if (e.heads) add(e.heads, hf(id + 'head'));
   }
-  const year = { q: yq, s: ys, a: ya }[wo.plan];
-  if (!year) return null;
-  return { year: Math.round(year * 10) / 10, visits: { q: 4, s: 2, a: 1 }[wo.plan] };
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const plan = {
+    q: { parts: [[3, vq, 'quarterly'], [1, va, 'annual']], year: 3 * vq + va },
+    s: { parts: [[1, vq, 'semi-annual'], [1, va, 'annual']], year: vq + va },
+    a: { parts: [[1, va, 'annual']], year: va },
+  }[wo.plan];
+  if (!plan || !plan.year) return null;
+  const parts = plan.parts
+    .filter(([, each]) => each > 0)
+    .map(([n, each, label]) => `${n} ${label} × ${r1(each)} hr${r1(each) !== 1 ? 's' : ''}`);
+  return { parts, year: r1(plan.year) };
 }
 
 function renderWonTab() {
@@ -2792,7 +2802,7 @@ function renderWonTab() {
       <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
       <div class="my-prop-contact">${esc(p.contact)||''}${p.salesName ? ' · ' + esc(p.salesName) : ''}</div>
       ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
-      ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; Bid at ${bh.year} hrs/yr across ${bh.visits} visit${bh.visits>1?'s':''}</div>` : ''; })()}
+      ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; ${esc(bh.parts.join(' · '))} &middot; ${bh.year} hrs/yr</div>` : ''; })()}
       ${renew}
       <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
       <div class="won-note-hint" id="won-hint-${i}"></div>
