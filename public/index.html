@@ -1050,6 +1050,8 @@ function clearAll() {
   EQ_DATA.forEach(e => { state[e.id] = { active: false, qty: 1, visits: e.defaultVisits, ...(e.custom ? { label: '' } : {}), ...(e.heads ? { heads: 1 } : {}) }; });
   planEnabled = { q: true, s: true, a: true };
   applyPlanUI();
+  calcHours = {};   // per-proposal hour overrides don't carry to the next quote
+  calcSig = '';
   clearDraft();
   buildGrid();
   refresh();
@@ -1072,7 +1074,9 @@ function serializeForm() {
   DRAFT_FIELDS.concat(SALES_FIELDS).forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
   const eq = {};
   EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; if (e.heads) eq[e.id].heads = s.heads || 1; } });
-  return { fields, eq, plans: { ...planEnabled } };
+  // calcHours = this proposal's per-unit hour overrides from the calculator,
+  // so Edit restores them and the Won tab can show the labor actually bid
+  return { fields, eq, plans: { ...planEnabled }, calcHours: { ...calcHours } };
 }
 
 // Set equipment card state from a saved {id: {qty, visits, label?}} map
@@ -1114,6 +1118,8 @@ function restoreDraft() {
   applyEqState(d.eq);
   planEnabled = { q: true, s: true, a: true, ...(d.plans || {}) };
   applyPlanUI();
+  calcHours = { ...(d.calcHours || {}) };
+  calcSig = '';
   updateDraftStatus(d.savedAt || null);
   return true;
 }
@@ -2184,6 +2190,8 @@ function editProposal(p) {
   applyEqState(f.eq);
   planEnabled = { q: true, s: true, a: true, ...(f.plans || {}) };
   applyPlanUI();
+  calcHours = { ...(f.calcHours || {}) };  // restore the hours this quote was bid with
+  calcSig = '';
   buildGrid();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   calcPriceTable(); // recomputes 3/5-yr cells, refreshes preview, saves draft
@@ -2729,6 +2737,28 @@ async function loadWonTab() {
   renderWonTab();
 }
 
+// Yearly labor hours this contract was bid at, for the plan the customer
+// chose: quarterly = 3 quarterly + 1 annual visit, semi = 1+1, annual = 1.
+// Uses the proposal's saved calculator overrides (formState.calcHours) and
+// falls back to the EQ_HOURS defaults — older wins without saved overrides
+// show the default-based figure.
+function wonBidHours(p) {
+  const f = p.formState, wo = p.wonOption;
+  if (!f || !f.eq || !wo || !wo.plan) return null;
+  const ch = f.calcHours || {};
+  const hf = (k) => ch[k] || EQ_HOURS[k] || { q: 0.5, a: 1 };
+  let yq = 0, ys = 0, ya = 0;
+  const add = (n, h) => { ya += n * h.a; ys += n * (h.q + h.a); yq += n * (3 * h.q + h.a); };
+  for (const id in f.eq) {
+    const e = f.eq[id];
+    add(e.qty || 0, hf(id));
+    if (e.heads) add(e.heads, hf(id + 'head'));
+  }
+  const year = { q: yq, s: ys, a: ya }[wo.plan];
+  if (!year) return null;
+  return { year: Math.round(year * 10) / 10, visits: { q: 4, s: 2, a: 1 }[wo.plan] };
+}
+
 function renderWonTab() {
   const list  = document.getElementById('won-list');
   const empty = document.getElementById('won-empty');
@@ -2762,6 +2792,7 @@ function renderWonTab() {
       <div class="my-prop-facility">${esc(p.facility)||'—'}</div>
       <div class="my-prop-contact">${esc(p.contact)||''}${p.salesName ? ' · ' + esc(p.salesName) : ''}</div>
       ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
+      ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; Bid at ${bh.year} hrs/yr across ${bh.visits} visit${bh.visits>1?'s':''}</div>` : ''; })()}
       ${renew}
       <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
       <div class="won-note-hint" id="won-hint-${i}"></div>
