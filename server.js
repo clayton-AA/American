@@ -906,6 +906,38 @@ function buildHTML(data) {
     </div>`;
   }).join('');
 
+  // ── SHIELD Base+ section — its own page AFTER the signature page, so the
+  // hand-tuned DocuSign page-3 tab coordinates never shift ─────────────────
+  const bp = data.basePlus;
+  const basePlusHTML = bp && bp.monthly ? `
+<div class="page-break"></div>
+<div class="doc-header">
+  <img src="data:image/png;base64,${LOGO_B64}" alt="American Air">
+  <div class="header-right">Facility: <strong>${facility}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong></div>
+</div>
+<div class="scope-hero">
+  <h2>SHIELD Base+ &mdash; Smart Building Monitoring</h2>
+  <p>${Number(bp.sqft).toLocaleString()} sq ft &middot; <strong>$${Number(bp.monthly).toLocaleString()} per month</strong> &middot; ${bp.includedStats} Smart Signal thermostat${bp.includedStats > 1 ? 's' : ''} included.</p>
+</div>
+<div class="services">
+  ${[
+    ['Smart Signal Thermostats', `Connected comfort control and visibility — one included per 5,000 sq ft (${bp.includedStats} for this building).`],
+    ['24/7 Remote Monitoring', 'Around-the-clock watch on your building systems so small problems are caught early.'],
+    ['Priority Scheduling', 'Members move ahead of standard service requests when service is needed.'],
+    ['Safeguard Visits', 'HVAC, plumbing and electrical safety checks.'],
+    ['SHIELD Report', 'Documented condition of your building systems.'],
+  ].map(([t, d]) => `
+    <div class="service-row">
+      <div class="check">&#10003;</div>
+      <div><div class="service-title">${t}</div><div class="service-desc">${d}</div></div>
+    </div>`).join('')}
+</div>
+${bp.extraStats ? `
+<div class="section-label">Additional thermostats</div>
+<p style="font-size:11px;color:#444;">${bp.extraStats} additional Smart Signal thermostat${bp.extraStats > 1 ? 's' : ''} beyond the ${bp.includedStats} included &mdash; $${bp.extraStatPrice} each installed (about 30 minutes per thermostat): <strong>$${Number(bp.extraStatsTotal).toLocaleString()} one-time</strong>.</p>` : ''}
+<p style="font-size:10px;color:#777;font-style:italic;">SHIELD Base+ is billed monthly alongside this agreement. Maintenance services are provided under the maintenance agreement itself.</p>
+` : '';
+
   const tcHTML = TC_SECTIONS.map(s => `
     <div class="tc-section">
       <div class="tc-heading">${s.h}</div>
@@ -1198,6 +1230,8 @@ ${pricingTableHTML}
 </div>
 </div><!-- end keep-together -->
 
+${basePlusHTML}
+
 <!-- ══ PAGE 2 — SCOPE ══════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
 
@@ -1487,6 +1521,7 @@ app.post('/generate', async (req, res) => {
         annualValue:    data.annualValue || 0,
         plans:          enabledPlanKeys(data.priceTable),
         formState:      data.formState || null,
+        basePlus:       data.basePlus || null,
         status:         'open',
         generatedAt:    new Date().toISOString(),
       });
@@ -1778,7 +1813,7 @@ app.post('/send-docusign', async (req, res) => {
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
       const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}` + (e.heads ? ` (${e.heads} heads)` : ''); if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
-      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
+      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, basePlus:data.basePlus || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
     const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date, plans:enabledPlanKeys(data.priceTable) });

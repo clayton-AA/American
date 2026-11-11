@@ -202,6 +202,17 @@ excludes it.
   just without an option. Webhook gotcha: the global `express.json()`
   parses the body before the route's `express.raw` — parse `req.body`
   by shape, never assume a Buffer.
+- **SHIELD Base+:** a toggle section on the New Proposal form (`bp-on`,
+  `bp-sqft`, `bp-extra`; state in `basePlusOn`, math in `basePlusCalc()`).
+  $25 per started 5,000 sq ft block per month, one thermostat included per
+  block; additional thermostats are $249 + 0.5 hr at the calculator labor
+  rate, one-time. The payload carries the computed `basePlus` object (both
+  send paths), the server stores it on the log entry, and the PDF renders it
+  as its OWN PAGE after the signature page — never before page 3, or the
+  hand-tuned DocuSign tab coordinates shift. Persisted in drafts/formState
+  as raw inputs (`bp {on, sqft, extra}`) via `applyBasePlusState()`;
+  `basePlusOk()` blocks generate/DocuSign when toggled on without square
+  footage. The Won tab shows a Base+ line when present.
 - **Mark Won:** the Dashboard's Mark Won button opens a modal
   (`openWonModal()`) asking which plan/term the customer signed for; the
   choice is stored as `wonOption {plan, term, price}` on the log entry via

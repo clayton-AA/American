@@ -552,6 +552,21 @@
     </div>
 
     <div class="section">
+      <div class="section-title">SHIELD Base+ <span style="font-size:10px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">MONITORING</span></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+        <input type="checkbox" id="bp-on" onchange="toggleBasePlus(this.checked)" style="width:16px;height:16px;accent-color:var(--blue);">
+        <span style="font-size:13px;color:var(--gray);">Quote SHIELD Base+ — $25 per 5,000 sq ft / month</span>
+      </label>
+      <div id="bp-fields" style="display:none;margin-top:10px;">
+        <label class="req">Building square footage</label>
+        <input type="number" id="bp-sqft" min="1" step="500" placeholder="e.g. 20000" oninput="this.classList.remove('invalid'); refresh()">
+        <label style="margin-top:10px;">Additional thermostats (beyond included)</label>
+        <input type="number" id="bp-extra" min="0" max="99" step="1" value="0" oninput="refresh()">
+        <div class="calc-note" id="bp-summary" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-title">Salesperson</div>
       <label class="req">Name</label>
       <input type="text" id="inp-sales-name" placeholder="Your full name" oninput="refresh()">
@@ -860,6 +875,16 @@ function refresh() {
   const annual1 = parseFloat(document.getElementById('p-1-a').value) || 0;
   document.getElementById('prev-annual').textContent = annual1 ? '$' + Math.round(annual1).toLocaleString() : '—';
 
+  // SHIELD Base+ live summary under its inputs (updates even with no equipment)
+  const bp = basePlusCalc();
+  const bpSummaryEl = document.getElementById('bp-summary');
+  if (bpSummaryEl) {
+    bpSummaryEl.textContent = !bp ? '' : bp.invalid
+      ? 'Enter square footage to price Base+.'
+      : `${bp.blocks} × 5,000 sq ft → $${bp.monthly}/mo · ${bp.includedStats} thermostat${bp.includedStats > 1 ? 's' : ''} included`
+        + (bp.extraStats ? ` · ${bp.extraStats} additional @ $${bp.extraStatPrice} installed = $${bp.extraStatsTotal.toLocaleString()} one-time` : '');
+  }
+
   const body = document.getElementById('preview-body');
   if (active.length === 0) {
     body.innerHTML = '<div class="preview-empty">Select equipment above to build your proposal preview.</div>';
@@ -934,6 +959,17 @@ function refresh() {
     </div>`;
   }
 
+  // ── SHIELD Base+ preview ──
+  if (bp && !bp.invalid) {
+    html += `<div class="preview-eq">
+      <div class="preview-eq-title">SHIELD Base+ Monitoring<span class="preview-eq-badge">$${bp.monthly}/month</span></div>
+      <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;">
+        ${Number(bp.sqft).toLocaleString()} sq ft · ${bp.includedStats} Smart Signal thermostat${bp.includedStats > 1 ? 's' : ''} included · 24/7 remote monitoring · priority scheduling · safeguard visits · SHIELD Report
+        ${bp.extraStats ? `<br>${bp.extraStats} additional thermostat${bp.extraStats > 1 ? 's' : ''} @ $${bp.extraStatPrice} installed — $${bp.extraStatsTotal.toLocaleString()} one-time` : ''}
+      </div>
+    </div>`;
+  }
+
   html += `<div class="preview-summary">
     <div class="preview-summary-item">Equipment types: <strong>${active.length}</strong></div>
     <div class="preview-summary-item">Total units: <strong>${totalUnits}</strong></div>
@@ -958,6 +994,7 @@ async function generate(preview) {
   if (active.length === 0) { toast('Select at least one equipment type.', 'error'); return; }
   if (!validateForm()) return;
   if (!customLabelOk()) return;
+  if (!basePlusOk()) return;
 
   // Open the tab synchronously (inside the click) so popup blockers allow it
   let previewWin = null;
@@ -996,6 +1033,7 @@ async function generate(preview) {
       surveyUnits: surveyPayloadUnits(),
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
       formState:  serializeForm(),
+      basePlus:   (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
       preview:    !!preview,
     };
 
@@ -1052,6 +1090,7 @@ function clearAll() {
   applyPlanUI();
   calcHours = {};   // per-proposal hour overrides don't carry to the next quote
   calcSig = '';
+  applyBasePlusState(null);
   clearDraft();
   buildGrid();
   refresh();
@@ -1076,7 +1115,17 @@ function serializeForm() {
   EQ_DATA.forEach(e => { const s = state[e.id]; if (s && s.active) { eq[e.id] = { qty: s.qty, visits: s.visits }; if (e.custom && s.label) eq[e.id].label = s.label; if (e.heads) eq[e.id].heads = s.heads || 1; } });
   // calcHours = this proposal's per-unit hour overrides from the calculator,
   // so Edit restores them and the Won tab can show the labor actually bid
-  return { fields, eq, plans: { ...planEnabled }, calcHours: { ...calcHours } };
+  return { fields, eq, plans: { ...planEnabled }, calcHours: { ...calcHours },
+           bp: { on: basePlusOn, sqft: gv('bp-sqft'), extra: gv('bp-extra') } };
+}
+
+// Restore the SHIELD Base+ toggle + inputs from a saved {on, sqft, extra}
+function applyBasePlusState(bp) {
+  basePlusOn = !!(bp && bp.on);
+  document.getElementById('bp-on').checked = basePlusOn;
+  document.getElementById('bp-sqft').value = (bp && bp.sqft) || '';
+  document.getElementById('bp-extra').value = (bp && bp.extra) || 0;
+  document.getElementById('bp-fields').style.display = basePlusOn ? 'block' : 'none';
 }
 
 // Set equipment card state from a saved {id: {qty, visits, label?}} map
@@ -1120,6 +1169,7 @@ function restoreDraft() {
   applyPlanUI();
   calcHours = { ...(d.calcHours || {}) };
   calcSig = '';
+  applyBasePlusState(d.bp);
   updateDraftStatus(d.savedAt || null);
   return true;
 }
@@ -1205,6 +1255,39 @@ function applyPlanUI() {
     const tile = document.getElementById('calc-' + k);
     if (tile && tile.parentElement) tile.parentElement.style.opacity = on ? '' : '0.35';
   });
+}
+
+// ── SHIELD Base+ monitoring quote ──────────────────────────────────────────
+// $25 per started 5,000 sq ft block per month, one Smart Signal thermostat
+// included per block. Additional thermostats: $249 + 0.5 hr install labor
+// at the calculator's labor rate, one-time.
+let basePlusOn = false;
+
+function toggleBasePlus(on) {
+  basePlusOn = on;
+  document.getElementById('bp-fields').style.display = on ? 'block' : 'none';
+  refresh();
+}
+
+function basePlusCalc() {
+  if (!basePlusOn) return null;
+  const sqft = parseFloat(gv('bp-sqft')) || 0;
+  if (sqft <= 0) return { invalid: true };
+  const blocks = Math.ceil(sqft / 5000);
+  const extraStats = Math.max(0, parseInt(gv('bp-extra')) || 0);
+  const labor = parseFloat(document.getElementById('as-labor').value) || 149;
+  const extraStatPrice = Math.round(249 + 0.5 * labor);
+  return { sqft, blocks, monthly: blocks * 25, includedStats: blocks, extraStats, extraStatPrice, extraStatsTotal: extraStats * extraStatPrice };
+}
+
+// Base+ needs a square footage before the quote can leave the building
+function basePlusOk() {
+  const bp = basePlusCalc();
+  if (!bp || !bp.invalid) return true;
+  toast('Enter the building square footage for SHIELD Base+.', 'error');
+  const el = document.getElementById('bp-sqft');
+  if (el) { el.classList.add('invalid'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  return false;
 }
 
 function getPriceTable() {
@@ -2192,6 +2275,7 @@ function editProposal(p) {
   applyPlanUI();
   calcHours = { ...(f.calcHours || {}) };  // restore the hours this quote was bid with
   calcSig = '';
+  applyBasePlusState(f.bp);
   buildGrid();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   calcPriceTable(); // recomputes 3/5-yr cells, refreshes preview, saves draft
@@ -2239,6 +2323,7 @@ function openDSModal() {
   if (active.length === 0) { toast('Select at least one equipment type first.', 'error'); return; }
   if (!validateForm()) return;
   if (!customLabelOk()) return;
+  if (!basePlusOk()) return;
   _dsPropData = null;
   document.getElementById('ds-customer-name').value  = gv('inp-contact');
   document.getElementById('ds-customer-email').value = stSelectedEmail || '';
@@ -2300,6 +2385,7 @@ async function sendDocuSign() {
           surveyUnits: surveyPayloadUnits(),
           customerName, customerEmail,
           formState: serializeForm(),
+          basePlus: (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
         }),
       });
     }
@@ -2803,6 +2889,7 @@ function renderWonTab() {
       <div class="my-prop-contact">${esc(p.contact)||''}${p.salesName ? ' · ' + esc(p.salesName) : ''}</div>
       ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
       ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; ${esc(bh.parts.join(' · '))} &middot; ${bh.year} hrs/yr</div>` : ''; })()}
+      ${p.basePlus && p.basePlus.monthly ? `<div class="my-prop-contact" style="color:var(--blue);">&#128737; SHIELD Base+ · $${Number(p.basePlus.monthly).toLocaleString()}/mo · ${(p.basePlus.includedStats || 0) + (p.basePlus.extraStats || 0)} thermostats</div>` : ''}
       ${renew}
       <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
       <div class="won-note-hint" id="won-hint-${i}"></div>
