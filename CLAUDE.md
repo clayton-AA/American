@@ -209,7 +209,12 @@ excludes it.
   rate, one-time. The payload carries the computed `basePlus` object (both
   send paths), the server stores it on the log entry, and the PDF renders it
   as its OWN PAGE after the signature page — never before page 3, or the
-  hand-tuned DocuSign tab coordinates shift. Persisted in drafts/formState
+  hand-tuned DocuSign tab coordinates shift. The page is a Better/Best
+  comparison (`.bp-grid`/`.bp-card` styles): Base+ (monitoring only, hard
+  monthly price) beside a highlighted SHIELD Premier card (= Base+ plus the
+  maintenance agreement, pointing at the Service Agreement Options page for
+  the maintenance price). Additional-thermostat pricing sits below as a
+  shared bar that applies to either option. Persisted in drafts/formState
   as raw inputs (`bp {on, sqft, extra}`) via `applyBasePlusState()`;
   `basePlusOk()` blocks generate/DocuSign when toggled on without square
   footage. The Won tab shows a Base+ line when present.

@@ -906,9 +906,12 @@ function buildHTML(data) {
     </div>`;
   }).join('');
 
-  // ── SHIELD Base+ section — its own page AFTER the signature page, so the
-  // hand-tuned DocuSign page-3 tab coordinates never shift ─────────────────
+  // ── SHIELD protection options — Better/Best comparison page AFTER the
+  // signature page, so the hand-tuned DocuSign page-3 coordinates never
+  // shift. Base+ = monitoring only; Premier = Base+ plus the maintenance
+  // agreement quoted in this proposal (mirrors the SHIELD sales sheet). ────
   const bp = data.basePlus;
+  const bpCheck = (txt) => `<div class="bp-li"><span class="bp-check">&#10003;</span><span>${txt}</span></div>`;
   const basePlusHTML = bp && bp.monthly ? `
 <div class="page-break"></div>
 <div class="doc-header">
@@ -916,26 +919,47 @@ function buildHTML(data) {
   <div class="header-right">Facility: <strong>${facility}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong></div>
 </div>
 <div class="scope-hero">
-  <h2>SHIELD Base+ &mdash; Smart Building Monitoring</h2>
-  <p>${Number(bp.sqft).toLocaleString()} sq ft &middot; <strong>$${Number(bp.monthly).toLocaleString()} per month</strong> &middot; ${bp.includedStats} Smart Signal thermostat${bp.includedStats > 1 ? 's' : ''} included.</p>
+  <h2>SHIELD Protection Options</h2>
+  <p>Two ways to protect your building &mdash; ${Number(bp.sqft).toLocaleString()} sq ft. Choose the level of coverage that fits.</p>
 </div>
-<div class="services">
-  ${[
-    ['Smart Signal Thermostats', `Connected comfort control and visibility — one included per 5,000 sq ft (${bp.includedStats} for this building).`],
-    ['24/7 Remote Monitoring', 'Around-the-clock watch on your building systems so small problems are caught early.'],
-    ['Priority Scheduling', 'Members move ahead of standard service requests when service is needed.'],
-    ['Safeguard Visits', 'HVAC, plumbing and electrical safety checks.'],
-    ['SHIELD Report', 'Documented condition of your building systems.'],
-  ].map(([t, d]) => `
-    <div class="service-row">
-      <div class="check">&#10003;</div>
-      <div><div class="service-title">${t}</div><div class="service-desc">${d}</div></div>
-    </div>`).join('')}
+<div class="bp-grid">
+  <div class="bp-card">
+    <div class="bp-card-tier">Better</div>
+    <div class="bp-card-head">
+      <div class="bp-card-name">SHIELD Base+</div>
+      <div class="bp-card-tag">Essential Protection</div>
+      <div class="bp-card-price">$${Number(bp.monthly).toLocaleString()}<span style="font-size:11px;font-weight:400;color:#777;">/month</span></div>
+      <div class="bp-card-price-sub">${bp.includedStats} Smart Signal thermostat${bp.includedStats > 1 ? 's' : ''} included</div>
+    </div>
+    <div class="bp-card-body">
+      ${bpCheck('Smart Signal thermostats — connected comfort control and visibility')}
+      ${bpCheck('24/7 remote monitoring — trouble spotted early')}
+      ${bpCheck('Priority scheduling — ahead of standard requests')}
+      ${bpCheck('Safeguard visits — HVAC, plumbing &amp; electrical safety checks')}
+      ${bpCheck('SHIELD Report — documented condition of your systems')}
+      <div class="bp-li bp-not"><span class="bp-check">&#10007;</span><span>Equipment maintenance not included</span></div>
+    </div>
+  </div>
+  <div class="bp-card best">
+    <div class="bp-card-tier">Best &mdash; Most Protection</div>
+    <div class="bp-card-head">
+      <div class="bp-card-name">SHIELD Premier</div>
+      <div class="bp-card-tag">Complete Coverage</div>
+      <div class="bp-card-price">$${Number(bp.monthly).toLocaleString()}<span style="font-size:11px;font-weight:400;color:#777;">/month</span><span style="font-size:12px;font-weight:600;"> + maintenance plan</span></div>
+      <div class="bp-card-price-sub">maintenance priced on the Service Agreement Options page</div>
+    </div>
+    <div class="bp-card-body">
+      <div class="bp-li bp-plus-head">Everything in Base+, plus:</div>
+      ${bpCheck('Ongoing maintenance of all covered equipment per the schedule in this agreement')}
+      ${bpCheck('Front-of-line scheduling — your call goes to the top of the board')}
+      ${bpCheck('CapEx planning — a replacement roadmap to budget ahead')}
+      ${bpCheck('Annual report — yearly review of systems, history &amp; what comes next')}
+    </div>
+  </div>
 </div>
 ${bp.extraStats ? `
-<div class="section-label">Additional thermostats</div>
-<p style="font-size:11px;color:#444;">${bp.extraStats} additional Smart Signal thermostat${bp.extraStats > 1 ? 's' : ''} beyond the ${bp.includedStats} included &mdash; $${bp.extraStatPrice} each installed (about 30 minutes per thermostat): <strong>$${Number(bp.extraStatsTotal).toLocaleString()} one-time</strong>.</p>` : ''}
-<p style="font-size:10px;color:#777;font-style:italic;">SHIELD Base+ is billed monthly alongside this agreement. Maintenance services are provided under the maintenance agreement itself.</p>
+<div class="bp-shared">${bp.extraStats} additional Smart Signal thermostat${bp.extraStats > 1 ? 's' : ''} beyond the ${bp.includedStats} included &mdash; $${bp.extraStatPrice} each installed (about 30 minutes per thermostat): <strong>$${Number(bp.extraStatsTotal).toLocaleString()} one-time</strong>. Applies to either option.</div>` : ''}
+<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Monitoring is billed monthly. Premier combines Base+ monitoring with the maintenance agreement in this proposal &mdash; select your maintenance plan on the Service Agreement Options page.</p>
 ` : '';
 
   const tcHTML = TC_SECTIONS.map(s => `
@@ -1093,6 +1117,25 @@ ${bp.extraStats ? `
   .payment-label { font-weight: 500; color: #1B3A6B; }
   .payment-opt { color: #555; }
   .payment-opt.selected { font-weight: 500; color: #1B3A6B; }
+
+  /* ── SHIELD Base+ / Premier comparison ── */
+  .bp-grid { display: flex; gap: 14px; margin-top: 4px; }
+  .bp-card { flex: 1; border: 1.5px solid #C9D6EA; border-radius: 8px; overflow: hidden; }
+  .bp-card.best { border-color: #1B3A6B; box-shadow: 0 2px 10px rgba(27,58,107,0.12); }
+  .bp-card-tier { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; text-align: center; padding: 4px 0; background: #E8EEF7; color: #1B3A6B; }
+  .bp-card.best .bp-card-tier { background: #1B3A6B; color: white; }
+  .bp-card-head { text-align: center; padding: 12px 14px 10px; border-bottom: 1px solid #E3EAF4; }
+  .bp-card-name { font-family: 'Playfair Display', serif; font-size: 16px; color: #1B3A6B; }
+  .bp-card-tag { font-size: 9.5px; color: #777; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+  .bp-card-price { font-size: 19px; font-weight: 700; color: #1B3A6B; margin-top: 8px; }
+  .bp-card-price-sub { font-size: 9.5px; color: #777; margin-top: 2px; }
+  .bp-card-body { padding: 10px 14px 12px; }
+  .bp-li { display: flex; gap: 7px; font-size: 10.5px; color: #333; padding: 3.5px 0; align-items: baseline; }
+  .bp-li .bp-check { color: #2e7d32; font-weight: 700; flex-shrink: 0; }
+  .bp-li.bp-not { color: #999; }
+  .bp-li.bp-not .bp-check { color: #bbb; }
+  .bp-li.bp-plus-head { font-weight: 600; color: #1B3A6B; font-size: 10.5px; padding-top: 6px; }
+  .bp-shared { margin-top: 12px; font-size: 10.5px; color: #444; background: #F4F7FC; border: 1px solid #E3EAF4; border-radius: 6px; padding: 9px 12px; }
   .initial-row { font-size: 11px; color: #555; margin-top: 6px; }
 
   /* ── Scope of work ── */
