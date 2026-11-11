@@ -945,8 +945,8 @@ function buildHTML(data) {
     <div class="bp-card-head">
       <div class="bp-card-name">SHIELD Premier</div>
       <div class="bp-card-tag">Complete Coverage</div>
-      <div class="bp-card-price">$${Number(bp.monthly).toLocaleString()}<span style="font-size:11px;font-weight:400;color:#777;">/month</span><span style="font-size:12px;font-weight:600;"> + maintenance plan</span></div>
-      <div class="bp-card-price-sub">maintenance priced on the Service Agreement Options page</div>
+      <div class="bp-card-price" style="font-size:16px;">Priced with your maintenance agreement</div>
+      <div class="bp-card-price-sub">monitoring included &mdash; see the Service Agreement Options page</div>
     </div>
     <div class="bp-card-body">
       <div class="bp-li bp-plus-head">Everything in Base+, plus:</div>
@@ -959,7 +959,7 @@ function buildHTML(data) {
 </div>
 ${bp.extraStats ? `
 <div class="bp-shared">${bp.extraStats} additional Smart Signal thermostat${bp.extraStats > 1 ? 's' : ''} beyond the ${bp.includedStats} included &mdash; $${bp.extraStatPrice} each installed (about 30 minutes per thermostat): <strong>$${Number(bp.extraStatsTotal).toLocaleString()} one-time</strong>. Applies to either option.</div>` : ''}
-<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Monitoring is billed monthly. Premier combines Base+ monitoring with the maintenance agreement in this proposal &mdash; select your maintenance plan on the Service Agreement Options page.</p>
+<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Base+ is billed monthly. With SHIELD Premier, monitoring is included in your maintenance agreement pricing &mdash; select your plan on the Service Agreement Options page.</p>
 ` : '';
 
   const tcHTML = TC_SECTIONS.map(s => `
