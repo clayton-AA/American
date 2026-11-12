@@ -218,6 +218,18 @@ excludes it.
   as raw inputs (`bp {on, sqft, extra}`) via `applyBasePlusState()`;
   `basePlusOk()` blocks generate/DocuSign when toggled on without square
   footage. The Won tab shows a Base+ line when present.
+- **Add-on devices:** quantity-based one-time smart devices (`ADDON_CATALOG`
+  in index.html: sump pump controller $349, T-25 stat $198, heavy duty smart
+  switch $125, in-wall light switch $69, water sensor $64, smart water valve
+  & meter $679). Rows are built at startup by `buildAddonRows()` into
+  `#ao-rows` (inputs `ao-<id>`) — it must run BEFORE `restoreDraft()`.
+  Qty > 0 rows go in the payload as `addons [{id,label,price,qty}]` on both
+  send paths; the server stores the array on the log entry and renders a
+  line-item table (`.ao-table`) as its own page after the Base+ page — same
+  rule: never before page 3. Persisted in drafts/formState as a qty map
+  (`ao {id: qty}`) via `applyAddonsState()`; prices live only in the
+  frontend catalog, the server renders whatever labels/prices arrive
+  (escaped). The Won tab shows a device-count/total line when present.
 - **Mark Won:** the Dashboard's Mark Won button opens a modal
   (`openWonModal()`) asking which plan/term the customer signed for; the
   choice is stored as `wonOption {plan, term, price}` on the log entry via

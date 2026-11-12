@@ -567,6 +567,13 @@
     </div>
 
     <div class="section">
+      <div class="section-title">Add-On Devices <span style="font-size:10px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">ONE-TIME</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Smart protection &amp; control devices, installed one-time. Set quantities to add them to the proposal.</div>
+      <div id="ao-rows"></div>
+      <div class="calc-note" id="ao-summary" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="section">
       <div class="section-title">Salesperson</div>
       <label class="req">Name</label>
       <input type="text" id="inp-sales-name" placeholder="Your full name" oninput="refresh()">
@@ -885,6 +892,17 @@ function refresh() {
         + (bp.extraStats ? ` · ${bp.extraStats} additional @ $${bp.extraStatPrice} installed = $${bp.extraStatsTotal.toLocaleString()} one-time` : '');
   }
 
+  // Add-on devices live summary under the quantity inputs
+  const aoLive = addonRows();
+  const aoSummaryEl = document.getElementById('ao-summary');
+  if (aoSummaryEl) {
+    const aoCount = aoLive.reduce((s, a) => s + a.qty, 0);
+    const aoTotal = aoLive.reduce((s, a) => s + a.qty * a.price, 0);
+    aoSummaryEl.textContent = aoLive.length
+      ? `${aoCount} device${aoCount > 1 ? 's' : ''} · $${aoTotal.toLocaleString()} one-time — printed as a line-item page in the proposal`
+      : '';
+  }
+
   const body = document.getElementById('preview-body');
   if (active.length === 0) {
     body.innerHTML = '<div class="preview-empty">Select equipment above to build your proposal preview.</div>';
@@ -971,6 +989,19 @@ function refresh() {
     </div>`;
   }
 
+  // ── Add-on devices preview (one-time line items) ──
+  const aoPrev = addonRows();
+  if (aoPrev.length) {
+    const aoTot = aoPrev.reduce((s, a) => s + a.qty * a.price, 0);
+    html += `<div class="preview-eq">
+      <div class="preview-eq-title">Add-On Devices<span class="preview-eq-badge">one-time</span></div>
+      <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;">
+        ${aoPrev.map(a => `${a.qty} × ${a.label} — $${(a.qty * a.price).toLocaleString()}`).join('<br>')}
+        <br><strong>Total: $${aoTot.toLocaleString()} one-time</strong>
+      </div>
+    </div>`;
+  }
+
   html += `<div class="preview-summary">
     <div class="preview-summary-item">Equipment types: <strong>${active.length}</strong></div>
     <div class="preview-summary-item">Total units: <strong>${totalUnits}</strong></div>
@@ -1035,6 +1066,7 @@ async function generate(preview) {
       annualValue: parseFloat(document.getElementById('p-1-a').value) || 0,
       formState:  serializeForm(),
       basePlus:   (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
+      addons:     addonsPayload(),
       preview:    !!preview,
     };
 
@@ -1092,6 +1124,7 @@ function clearAll() {
   calcHours = {};   // per-proposal hour overrides don't carry to the next quote
   calcSig = '';
   applyBasePlusState(null);
+  applyAddonsState(null);
   clearDraft();
   buildGrid();
   refresh();
@@ -1117,7 +1150,8 @@ function serializeForm() {
   // calcHours = this proposal's per-unit hour overrides from the calculator,
   // so Edit restores them and the Won tab can show the labor actually bid
   return { fields, eq, plans: { ...planEnabled }, calcHours: { ...calcHours },
-           bp: { on: basePlusOn, sqft: gv('bp-sqft'), extra: gv('bp-extra') } };
+           bp: { on: basePlusOn, sqft: gv('bp-sqft'), extra: gv('bp-extra') },
+           ao: addonQtys() };
 }
 
 // Restore the SHIELD Base+ toggle + inputs from a saved {on, sqft, extra}
@@ -1148,7 +1182,8 @@ function saveDraft() {
       const f = serializeForm();
       const hasContent = f.fields['inp-facility'] || f.fields['inp-address'] || f.fields['inp-contact']
         || f.fields['inp-additions'] || f.fields['inp-exclusions']
-        || f.fields['p-1-q'] || f.fields['p-1-s'] || f.fields['p-1-a'] || Object.keys(f.eq).length;
+        || f.fields['p-1-q'] || f.fields['p-1-s'] || f.fields['p-1-a'] || Object.keys(f.eq).length
+        || Object.keys(f.ao || {}).length;
       if (!hasContent) { localStorage.removeItem(DRAFT_KEY); updateDraftStatus(null); return; }
       const payload = { ...f, savedAt: Date.now() };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
@@ -1171,6 +1206,7 @@ function restoreDraft() {
   calcHours = { ...(d.calcHours || {}) };
   calcSig = '';
   applyBasePlusState(d.bp);
+  applyAddonsState(d.ao);
   updateDraftStatus(d.savedAt || null);
   return true;
 }
@@ -1289,6 +1325,58 @@ function basePlusOk() {
   const el = document.getElementById('bp-sqft');
   if (el) { el.classList.add('invalid'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   return false;
+}
+
+// ── Add-on devices — one-time installed smart devices with quantities ──────
+// Fixed catalog; rows with qty > 0 go to the PDF as a line-item table on its
+// own page after the signature page (DocuSign page-3 coordinates never move).
+const ADDON_CATALOG = [
+  { id: 'sump',   label: 'Sump Pump Controller',     price: 349 },
+  { id: 't25',    label: 'T-25 Stat',                price: 198 },
+  { id: 'hdsw',   label: 'Heavy Duty Smart Switch',  price: 125 },
+  { id: 'lsw',    label: 'In-Wall Light Switch',     price: 69  },
+  { id: 'wsense', label: 'Water Sensor',             price: 64  },
+  { id: 'wvalve', label: 'Smart Water Valve & Meter', price: 679 },
+];
+
+function buildAddonRows() {
+  const wrap = document.getElementById('ao-rows');
+  if (!wrap) return;
+  wrap.innerHTML = ADDON_CATALOG.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span style="flex:1;font-size:13px;color:var(--gray);">${a.label}</span>
+      <span style="font-size:12px;color:var(--muted);min-width:44px;text-align:right;">$${a.price.toLocaleString()}</span>
+      <input type="number" id="ao-${a.id}" min="0" max="99" step="1" placeholder="0"
+        style="width:64px;margin:0;text-align:center;" oninput="refresh()">
+    </div>`).join('');
+}
+
+// Rows the rep actually quoted (qty > 0), with per-row totals
+function addonRows() {
+  return ADDON_CATALOG
+    .map(a => ({ ...a, qty: Math.max(0, parseInt(gv('ao-' + a.id)) || 0) }))
+    .filter(a => a.qty > 0);
+}
+
+// Payload for /generate and /send-docusign — null when nothing is quoted
+function addonsPayload() {
+  const rows = addonRows();
+  return rows.length ? rows.map(a => ({ id: a.id, label: a.label, price: a.price, qty: a.qty })) : null;
+}
+
+// Qty map {id: qty} for drafts / formState (nonzero only)
+function addonQtys() {
+  const m = {};
+  addonRows().forEach(a => { m[a.id] = a.qty; });
+  return m;
+}
+
+// Restore quantities from a saved {id: qty} map (null clears all)
+function applyAddonsState(ao) {
+  ADDON_CATALOG.forEach(a => {
+    const el = document.getElementById('ao-' + a.id);
+    if (el) el.value = (ao && ao[a.id]) || '';
+  });
 }
 
 function getPriceTable() {
@@ -2108,6 +2196,7 @@ document.addEventListener('click', (e) => {
   if (saved && !el.value) el.value = saved;
   el.addEventListener('input', () => localStorage.setItem('aa_' + id, el.value));
 });
+buildAddonRows();   // must exist before restoreDraft() fills the quantities
 const _draftRestored = restoreDraft();
 if (!document.getElementById('inp-date').value) setDateToToday();
 REQUIRED_FIELDS.forEach(id => {
@@ -2277,6 +2366,7 @@ function editProposal(p) {
   calcHours = { ...(f.calcHours || {}) };  // restore the hours this quote was bid with
   calcSig = '';
   applyBasePlusState(f.bp);
+  applyAddonsState(f.ao);
   buildGrid();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   calcPriceTable(); // recomputes 3/5-yr cells, refreshes preview, saves draft
@@ -2387,6 +2477,7 @@ async function sendDocuSign() {
           customerName, customerEmail,
           formState: serializeForm(),
           basePlus: (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
+          addons: addonsPayload(),
         }),
       });
     }
@@ -2891,6 +2982,7 @@ function renderWonTab() {
       ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
       ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; ${esc(bh.parts.join(' · '))} &middot; ${bh.year} hrs/yr</div>` : ''; })()}
       ${p.basePlus && p.basePlus.monthly ? `<div class="my-prop-contact" style="color:var(--blue);">&#128737; SHIELD Base+ · $${Number(p.basePlus.monthly).toLocaleString()}/mo · ${(p.basePlus.includedStats || 0) + (p.basePlus.extraStats || 0)} thermostats</div>` : ''}
+      ${Array.isArray(p.addons) && p.addons.length ? (() => { const n = p.addons.reduce((s,a) => s + (a.qty||0), 0); const t = p.addons.reduce((s,a) => s + (a.qty||0) * (a.price||0), 0); return `<div class="my-prop-contact" style="color:var(--blue);">&#128268; Add-ons · ${n} device${n > 1 ? 's' : ''} · $${t.toLocaleString()} one-time</div>`; })() : ''}
       ${renew}
       <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
       <div class="won-note-hint" id="won-hint-${i}"></div>

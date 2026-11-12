@@ -962,6 +962,33 @@ ${bp.extraStats ? `
 <p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Base+ is billed monthly. With SHIELD Premier, monitoring is included in your maintenance agreement pricing &mdash; select your plan on the Service Agreement Options page.</p>
 ` : '';
 
+  // ── Smart device add-ons — one-time installed line items on their own page,
+  // also AFTER the signature page so the DocuSign page-3 tab coordinates
+  // never shift. Rows come from the client catalog; qty 0 rows never arrive. ─
+  const aoRows = (Array.isArray(data.addons) ? data.addons : [])
+    .map(a => ({ label: String(a.label || '').trim(), price: Math.max(0, Number(a.price) || 0), qty: Math.max(0, Math.round(Number(a.qty) || 0)) }))
+    .filter(a => a.label && a.qty > 0);
+  const aoTotal = aoRows.reduce((s, a) => s + a.qty * a.price, 0);
+  const addonsHTML = aoRows.length ? `
+<div class="page-break"></div>
+<div class="doc-header">
+  <img src="data:image/png;base64,${LOGO_B64}" alt="American Air">
+  <div class="header-right">Facility: <strong>${facility}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong></div>
+</div>
+<div class="scope-hero">
+  <h2>Smart Device Add-Ons</h2>
+  <p>Optional protection &amp; control devices for ${facility}, installed by American Air. One-time pricing &mdash; billed at installation, separate from the service agreement amount.</p>
+</div>
+<table class="ao-table">
+  <thead><tr><th>Device</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
+  <tbody>
+    ${aoRows.map(a => `<tr><td>${escHtml(a.label)}</td><td class="num">${a.qty}</td><td class="num">$${a.price.toLocaleString()}</td><td class="num">$${(a.qty * a.price).toLocaleString()}</td></tr>`).join('')}
+  </tbody>
+  <tfoot><tr><td colspan="3">Add-Ons Total &mdash; one-time</td><td class="num">$${aoTotal.toLocaleString()}</td></tr></tfoot>
+</table>
+<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Devices are installed and connected by American Air and tie into the SHIELD monitoring platform where applicable. Add-on pricing is invoiced once at installation.</p>
+` : '';
+
   const tcHTML = TC_SECTIONS.map(s => `
     <div class="tc-section">
       <div class="tc-heading">${s.h}</div>
@@ -1138,6 +1165,14 @@ ${bp.extraStats ? `
   .bp-shared { margin-top: 12px; font-size: 10.5px; color: #444; background: #F4F7FC; border: 1px solid #E3EAF4; border-radius: 6px; padding: 9px 12px; }
   .initial-row { font-size: 11px; color: #555; margin-top: 6px; }
 
+  /* ── Smart device add-ons table ── */
+  .ao-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+  .ao-table th { background: #1B3A6B; color: white; padding: 8px 12px; text-align: left; font-weight: 500; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; }
+  .ao-table th.num, .ao-table td.num { text-align: right; }
+  .ao-table td { padding: 8px 12px; border-bottom: 1px solid #E3EAF4; color: #333; }
+  .ao-table tbody tr:nth-child(even) { background: #F7FAFD; }
+  .ao-table tfoot td { font-weight: 700; color: #1B3A6B; border-top: 2px solid #1B3A6B; border-bottom: none; padding: 9px 12px; }
+
   /* ── Scope of work ── */
   .scope-hero { background: #E8EEF7; padding: 12px 0; margin-bottom: 16px; }
   .scope-hero h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: #1B3A6B; margin-bottom: 4px; }
@@ -1274,6 +1309,8 @@ ${pricingTableHTML}
 </div><!-- end keep-together -->
 
 ${basePlusHTML}
+
+${addonsHTML}
 
 <!-- ══ PAGE 2 — SCOPE ══════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
@@ -1565,6 +1602,7 @@ app.post('/generate', async (req, res) => {
         plans:          enabledPlanKeys(data.priceTable),
         formState:      data.formState || null,
         basePlus:       data.basePlus || null,
+        addons:         data.addons || null,
         status:         'open',
         generatedAt:    new Date().toISOString(),
       });
@@ -1856,7 +1894,7 @@ app.post('/send-docusign', async (req, res) => {
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
       const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}` + (e.heads ? ` (${e.heads} heads)` : ''); if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
-      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, basePlus:data.basePlus || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
+      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, basePlus:data.basePlus || null, addons:data.addons || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
     const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date, plans:enabledPlanKeys(data.priceTable) });
