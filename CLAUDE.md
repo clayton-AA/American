@@ -226,10 +226,15 @@ excludes it.
   Qty > 0 rows go in the payload as `addons [{id,label,price,qty}]` on both
   send paths; the server stores the array on the log entry and renders a
   line-item table (`.ao-table`) as its own page after the Base+ page — same
-  rule: never before page 3. Persisted in drafts/formState as a qty map
-  (`ao {id: qty}`) via `applyAddonsState()`; prices live only in the
-  frontend catalog, the server renders whatever labels/prices arrive
-  (escaped). The Won tab shows a device-count/total line when present.
+  rule: never before page 3. An optional `ao-mon` checkbox adds a flat
+  $25/month SHIELD device monitoring rider — sent as
+  `addonMonitoring {monthly: 25}`, stored on the log entry, rendered as a
+  `.bp-shared` box under the device table (page renders for monitoring
+  even with zero devices). Persisted in drafts/formState as a qty map +
+  flag (`ao {id: qty}`, `aoMon`) via `applyAddonsState(ao, mon)`; prices
+  live only in the frontend catalog, the server renders whatever
+  labels/prices arrive (escaped). The Won tab shows a
+  device-count/total/monitoring line when present.
 - **Mark Won:** the Dashboard's Mark Won button opens a modal
   (`openWonModal()`) asking which plan/term the customer signed for; the
   choice is stored as `wonOption {plan, term, price}` on the log entry via

@@ -969,7 +969,10 @@ ${bp.extraStats ? `
     .map(a => ({ label: String(a.label || '').trim(), price: Math.max(0, Number(a.price) || 0), qty: Math.max(0, Math.round(Number(a.qty) || 0)) }))
     .filter(a => a.label && a.qty > 0);
   const aoTotal = aoRows.reduce((s, a) => s + a.qty * a.price, 0);
-  const addonsHTML = aoRows.length ? `
+  // Optional monitoring rider — a flat monthly service charge for the devices
+  const aoMon = data.addonMonitoring && Number(data.addonMonitoring.monthly) > 0
+    ? Math.round(Number(data.addonMonitoring.monthly)) : 0;
+  const addonsHTML = (aoRows.length || aoMon) ? `
 <div class="page-break"></div>
 <div class="doc-header">
   <img src="data:image/png;base64,${LOGO_B64}" alt="American Air">
@@ -977,16 +980,20 @@ ${bp.extraStats ? `
 </div>
 <div class="scope-hero">
   <h2>Smart Device Add-Ons</h2>
-  <p>Optional protection &amp; control devices for ${facility}, installed by American Air. One-time pricing &mdash; billed at installation, separate from the service agreement amount.</p>
+  <p>Optional protection &amp; control devices for ${facility}, installed by American Air. Billed separately from the service agreement amount.</p>
 </div>
+${aoRows.length ? `
 <table class="ao-table">
   <thead><tr><th>Device</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
   <tbody>
     ${aoRows.map(a => `<tr><td>${escHtml(a.label)}</td><td class="num">${a.qty}</td><td class="num">$${a.price.toLocaleString()}</td><td class="num">$${(a.qty * a.price).toLocaleString()}</td></tr>`).join('')}
   </tbody>
   <tfoot><tr><td colspan="3">Add-Ons Total &mdash; one-time</td><td class="num">$${aoTotal.toLocaleString()}</td></tr></tfoot>
-</table>
-<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Devices are installed and connected by American Air and tie into the SHIELD monitoring platform where applicable. Add-on pricing is invoiced once at installation.</p>
+</table>` : ''}
+${aoMon ? `
+<div class="bp-shared">SHIELD device monitoring &mdash; <strong>$${aoMon.toLocaleString()}/month</strong>. Connects ${aoRows.length ? 'the devices above' : 'your smart devices'} to the SHIELD monitoring platform &mdash; alerts, remote visibility, and trouble spotted early. Billed monthly, separate from the one-time device pricing.</div>` : ''}
+${aoRows.length ? `
+<p style="font-size:10px;color:#777;font-style:italic;margin-top:10px;">Devices are installed and connected by American Air and tie into the SHIELD monitoring platform where applicable. Add-on pricing is invoiced once at installation${aoMon ? '; monitoring is billed monthly' : ''}.</p>` : ''}
 ` : '';
 
   const tcHTML = TC_SECTIONS.map(s => `
@@ -1603,6 +1610,7 @@ app.post('/generate', async (req, res) => {
         formState:      data.formState || null,
         basePlus:       data.basePlus || null,
         addons:         data.addons || null,
+        addonMonitoring: data.addonMonitoring || null,
         status:         'open',
         generatedAt:    new Date().toISOString(),
       });
@@ -1894,7 +1902,7 @@ app.post('/send-docusign', async (req, res) => {
     try {
       let log = []; try { log = JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e) {}
       const eq = data.equipment.map(e => { const eq = EQ_CATALOG[e.id]; if (eq) return `${e.qty}x ${eq.name}` + (e.heads ? ` (${e.heads} heads)` : ''); if (e.id === 'custom') return `${e.qty}x ${(e.label || '').trim() || 'Custom Equipment'}`; return e.id; }).join(', ');
-      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, basePlus:data.basePlus || null, addons:data.addons || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
+      log.unshift({ proposalNumber:data.proposalNumber, facility:data.facility, contact:data.contact, salesName:data.salesName, salesPhone:data.salesPhone, salesEmail:data.salesEmail, date:data.date, equipment:eq, plans:enabledPlanKeys(data.priceTable), formState:data.formState || null, basePlus:data.basePlus || null, addons:data.addons || null, addonMonitoring:data.addonMonitoring || null, sentViaDocuSign:true, customerEmail:data.customerEmail, generatedAt:new Date().toISOString() });
       fs.writeFileSync(LOG_FILE, JSON.stringify(log,null,2));
     } catch(e) { console.error('Log error:',e.message); }
     const envelopeId = await createDSEnvelope({ pdfBuffer:Buffer.from(pdf), filename, customerName:data.customerName||data.contact, customerEmail:data.customerEmail, repName:data.salesName, repEmail:'Clayton@americanairinc.com', date:data.date, plans:enabledPlanKeys(data.priceTable) });

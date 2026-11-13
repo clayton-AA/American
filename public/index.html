@@ -567,9 +567,13 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Add-On Devices <span style="font-size:10px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">ONE-TIME</span></div>
+      <div class="section-title">Add-On Devices <span style="font-size:10px;background:var(--light-blue);color:var(--blue);padding:1px 5px;border-radius:6px;">DEVICES</span></div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Smart protection &amp; control devices, installed one-time. Set quantities to add them to the proposal.</div>
       <div id="ao-rows"></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+        <input type="checkbox" id="ao-mon" onchange="refresh()" style="width:16px;height:16px;accent-color:var(--blue);">
+        <span style="font-size:13px;color:var(--gray);">Include SHIELD device monitoring &mdash; $25 / month</span>
+      </label>
       <div class="calc-note" id="ao-summary" style="margin-top:8px;"></div>
     </div>
 
@@ -894,12 +898,16 @@ function refresh() {
 
   // Add-on devices live summary under the quantity inputs
   const aoLive = addonRows();
+  const aoMonOn = addonMonitoring();
   const aoSummaryEl = document.getElementById('ao-summary');
   if (aoSummaryEl) {
     const aoCount = aoLive.reduce((s, a) => s + a.qty, 0);
     const aoTotal = aoLive.reduce((s, a) => s + a.qty * a.price, 0);
-    aoSummaryEl.textContent = aoLive.length
-      ? `${aoCount} device${aoCount > 1 ? 's' : ''} · $${aoTotal.toLocaleString()} one-time — printed as a line-item page in the proposal`
+    const parts = [];
+    if (aoLive.length) parts.push(`${aoCount} device${aoCount > 1 ? 's' : ''} · $${aoTotal.toLocaleString()} one-time`);
+    if (aoMonOn) parts.push('$25/mo monitoring');
+    aoSummaryEl.textContent = parts.length
+      ? parts.join(' + ') + ' — printed as a line-item page in the proposal'
       : '';
   }
 
@@ -989,15 +997,17 @@ function refresh() {
     </div>`;
   }
 
-  // ── Add-on devices preview (one-time line items) ──
+  // ── Add-on devices preview (one-time line items + optional monitoring) ──
   const aoPrev = addonRows();
-  if (aoPrev.length) {
+  const aoMonPrev = addonMonitoring();
+  if (aoPrev.length || aoMonPrev) {
     const aoTot = aoPrev.reduce((s, a) => s + a.qty * a.price, 0);
     html += `<div class="preview-eq">
-      <div class="preview-eq-title">Add-On Devices<span class="preview-eq-badge">one-time</span></div>
+      <div class="preview-eq-title">Add-On Devices<span class="preview-eq-badge">${aoPrev.length ? 'one-time' : 'monthly'}</span></div>
       <div style="border:1px solid var(--mid-blue);border-top:none;border-radius:0 0 6px 6px;padding:10px 14px;font-size:12px;color:#555;">
         ${aoPrev.map(a => `${a.qty} × ${a.label} — $${(a.qty * a.price).toLocaleString()}`).join('<br>')}
-        <br><strong>Total: $${aoTot.toLocaleString()} one-time</strong>
+        ${aoPrev.length ? `<br><strong>Total: $${aoTot.toLocaleString()} one-time</strong>` : ''}
+        ${aoMonPrev ? `${aoPrev.length ? '<br>' : ''}SHIELD device monitoring — <strong>$25/month</strong>` : ''}
       </div>
     </div>`;
   }
@@ -1067,6 +1077,7 @@ async function generate(preview) {
       formState:  serializeForm(),
       basePlus:   (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
       addons:     addonsPayload(),
+      addonMonitoring: addonMonitoring() ? { monthly: 25 } : null,
       preview:    !!preview,
     };
 
@@ -1151,7 +1162,7 @@ function serializeForm() {
   // so Edit restores them and the Won tab can show the labor actually bid
   return { fields, eq, plans: { ...planEnabled }, calcHours: { ...calcHours },
            bp: { on: basePlusOn, sqft: gv('bp-sqft'), extra: gv('bp-extra') },
-           ao: addonQtys() };
+           ao: addonQtys(), aoMon: addonMonitoring() };
 }
 
 // Restore the SHIELD Base+ toggle + inputs from a saved {on, sqft, extra}
@@ -1183,7 +1194,7 @@ function saveDraft() {
       const hasContent = f.fields['inp-facility'] || f.fields['inp-address'] || f.fields['inp-contact']
         || f.fields['inp-additions'] || f.fields['inp-exclusions']
         || f.fields['p-1-q'] || f.fields['p-1-s'] || f.fields['p-1-a'] || Object.keys(f.eq).length
-        || Object.keys(f.ao || {}).length;
+        || Object.keys(f.ao || {}).length || f.aoMon;
       if (!hasContent) { localStorage.removeItem(DRAFT_KEY); updateDraftStatus(null); return; }
       const payload = { ...f, savedAt: Date.now() };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
@@ -1206,7 +1217,7 @@ function restoreDraft() {
   calcHours = { ...(d.calcHours || {}) };
   calcSig = '';
   applyBasePlusState(d.bp);
-  applyAddonsState(d.ao);
+  applyAddonsState(d.ao, d.aoMon);
   updateDraftStatus(d.savedAt || null);
   return true;
 }
@@ -1371,12 +1382,20 @@ function addonQtys() {
   return m;
 }
 
-// Restore quantities from a saved {id: qty} map (null clears all)
-function applyAddonsState(ao) {
+// Optional $25/month SHIELD device monitoring rider on the add-ons quote
+function addonMonitoring() {
+  const el = document.getElementById('ao-mon');
+  return !!(el && el.checked);
+}
+
+// Restore quantities + monitoring checkbox from a saved state (null clears all)
+function applyAddonsState(ao, mon) {
   ADDON_CATALOG.forEach(a => {
     const el = document.getElementById('ao-' + a.id);
     if (el) el.value = (ao && ao[a.id]) || '';
   });
+  const m = document.getElementById('ao-mon');
+  if (m) m.checked = !!mon;
 }
 
 function getPriceTable() {
@@ -2366,7 +2385,7 @@ function editProposal(p) {
   calcHours = { ...(f.calcHours || {}) };  // restore the hours this quote was bid with
   calcSig = '';
   applyBasePlusState(f.bp);
-  applyAddonsState(f.ao);
+  applyAddonsState(f.ao, f.aoMon);
   buildGrid();
   document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
   calcPriceTable(); // recomputes 3/5-yr cells, refreshes preview, saves draft
@@ -2478,6 +2497,7 @@ async function sendDocuSign() {
           formState: serializeForm(),
           basePlus: (() => { const b = basePlusCalc(); return b && !b.invalid ? b : null; })(),
           addons: addonsPayload(),
+          addonMonitoring: addonMonitoring() ? { monthly: 25 } : null,
         }),
       });
     }
@@ -2982,7 +3002,7 @@ function renderWonTab() {
       ${opt ? `<div class="my-prop-contact" style="color:var(--blue);font-weight:500;">${esc(opt)}${pay ? ' · ' + esc(pay) : ''}</div>` : ''}
       ${(() => { const bh = wonBidHours(p); return bh ? `<div class="my-prop-contact">&#9201; ${esc(bh.parts.join(' · '))} &middot; ${bh.year} hrs/yr</div>` : ''; })()}
       ${p.basePlus && p.basePlus.monthly ? `<div class="my-prop-contact" style="color:var(--blue);">&#128737; SHIELD Base+ · $${Number(p.basePlus.monthly).toLocaleString()}/mo · ${(p.basePlus.includedStats || 0) + (p.basePlus.extraStats || 0)} thermostats</div>` : ''}
-      ${Array.isArray(p.addons) && p.addons.length ? (() => { const n = p.addons.reduce((s,a) => s + (a.qty||0), 0); const t = p.addons.reduce((s,a) => s + (a.qty||0) * (a.price||0), 0); return `<div class="my-prop-contact" style="color:var(--blue);">&#128268; Add-ons · ${n} device${n > 1 ? 's' : ''} · $${t.toLocaleString()} one-time</div>`; })() : ''}
+      ${(Array.isArray(p.addons) && p.addons.length) || (p.addonMonitoring && p.addonMonitoring.monthly) ? (() => { const rows = Array.isArray(p.addons) ? p.addons : []; const n = rows.reduce((s,a) => s + (a.qty||0), 0); const t = rows.reduce((s,a) => s + (a.qty||0) * (a.price||0), 0); const bits = []; if (n) bits.push(`${n} device${n > 1 ? 's' : ''} · $${t.toLocaleString()} one-time`); if (p.addonMonitoring && p.addonMonitoring.monthly) bits.push(`$${Number(p.addonMonitoring.monthly).toLocaleString()}/mo monitoring`); return `<div class="my-prop-contact" style="color:var(--blue);">&#128268; Add-ons · ${bits.join(' · ')}</div>`; })() : ''}
       ${renew}
       <textarea class="won-note" placeholder="Notes — gate codes, filter sizes, billing contact, site quirks..." oninput="wonNoteInput(${i}, this)" onblur="wonNoteFlush(${i}, this)">${esc(p.notes||'')}</textarea>
       <div class="won-note-hint" id="won-hint-${i}"></div>
